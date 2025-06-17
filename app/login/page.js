@@ -2,9 +2,10 @@
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI, ApiError } from "@/libs/api";
+import "./styles.css";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -12,18 +13,56 @@ export default function LoginPage() {
   const [loginInProgress, setLoginInProgress] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [userType, setUserType] = useState(null);
 
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Get callback URL from search params or default to "/"
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  // Get callback URL from search params or default based on user type
+  const callbackUrl = searchParams.get("callbackUrl");
+
+  // Auto-dismiss success message after 3 seconds
+  useEffect(() => {
+    if (loginSuccess) {
+      const timer = setTimeout(() => {
+        setLoginSuccess(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [loginSuccess]);
+
+  // Auto-dismiss error message after 3 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError("");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  // Redirect based on user type
+  const getRedirectUrl = (userType, fallbackUrl = "/") => {
+    if (callbackUrl) return callbackUrl;
+
+    switch (userType) {
+      case "restaurant_owner":
+        return "/restaurant/dashboard";
+      case "delivery_driver":
+        return "/rider/dashboard";
+      case "end_user":
+      case "user":
+      default:
+        return "/";
+    }
+  };
 
   async function handleFormSubmit(ev) {
     ev.preventDefault();
     setLoginInProgress(true);
     setError("");
     setLoginSuccess(false);
+    setUserType(null);
 
     try {
       // First try to authenticate with your API
@@ -41,23 +80,25 @@ export default function LoginPage() {
       setLoginSuccess(true);
       console.log("API login successful:", response.data);
 
-      // Then proceed with NextAuth signIn for session management
-      const result = await signIn("credentials", {
-        email,
-        password,
-        callbackUrl,
-        redirect: false, // Handle redirect manually for better error control
-      });
+      // Extract user type from response
+      const userData = response.data.user;
+      const detectedUserType =
+        userData.userType || userData.role || userData.type || "customer";
+      setUserType(detectedUserType);
 
-      if (result?.error) {
+      if (response?.error) {
         // NextAuth signIn failed
-        throw new Error(result.error);
+        throw new Error(response.error);
       }
 
-      // Success - redirect after a brief delay to show success message
+      // Success - redirect after showing success message briefly
       setTimeout(() => {
-        router.push(callbackUrl);
-      }, 1000);
+        const redirectUrl = getRedirectUrl(detectedUserType);
+        console.log(`Redirecting ${detectedUserType} to ${redirectUrl}`);
+        router.push(redirectUrl);
+      }, 1500); // Slightly shorter than the auto-dismiss to ensure user sees the message
+
+      
     } catch (apiError) {
       console.error("Login error:", apiError);
 
@@ -133,53 +174,106 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Success Message */}
-        {loginSuccess && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center shadow-sm">
-            <div className="text-green-800 font-medium mb-2 flex items-center justify-center gap-2">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              Login successful!
+        {/* Toast Container */}
+        <div className="fixed top-4 right-4 z-50 space-y-2">
+          {/* Success Toast */}
+          {loginSuccess && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 shadow-lg min-w-[300px] animate-slide-in-right">
+              <div className="text-green-800 font-medium mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  Login successful!
+                </div>
+                <button
+                  onClick={() => setLoginSuccess(false)}
+                  className="text-green-600 hover:text-green-800"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div className="text-green-700 text-sm">
+                {userType &&
+                  `Welcome back! Redirecting to your ${userType} dashboard...`}
+                {!userType && "Redirecting you to your dashboard..."}
+              </div>
+              {/* Progress bar */}
+              <div className="w-full bg-green-200 rounded-full h-1 mt-3">
+                <div className="bg-green-500 h-1 rounded-full animate-progress"></div>
+              </div>
             </div>
-            <div className="text-green-700 text-sm">
-              Redirecting you to your dashboard...
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center shadow-sm">
-            <div className="text-red-800 font-medium mb-1 flex items-center justify-center gap-2">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              Login failed
+          {/* Error Toast */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 shadow-lg min-w-[300px] animate-slide-in-right">
+              <div className="text-red-800 font-medium mb-1 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  Login failed
+                </div>
+                <button
+                  onClick={() => setError("")}
+                  className="text-red-600 hover:text-red-800"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div className="text-red-700 text-sm">{error}</div>
+              {/* Progress bar */}
+              <div className="w-full bg-red-200 rounded-full h-1 mt-3">
+                <div className="bg-red-500 h-1 rounded-full animate-progress"></div>
+              </div>
             </div>
-            <div className="text-red-700 text-sm">{error}</div>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="bg-white shadow-lg rounded-lg p-8">
           <form className="space-y-6" onSubmit={handleFormSubmit}>
@@ -296,7 +390,9 @@ export default function LoginPage() {
 
             <button
               type="button"
-              onClick={() => signIn("google", { callbackUrl })}
+              onClick={() =>
+                signIn("google", { callbackUrl: getRedirectUrl("customer") })
+              }
               disabled={loginInProgress}
               className="w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-50 focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
             >
