@@ -47,9 +47,9 @@ export default function LoginPage() {
 
     switch (userType) {
       case "restaurant_owner":
-        return "/restaurant/dashboard";
+        return "/restaurant/";
       case "delivery_driver":
-        return "/rider/dashboard";
+        return "/delivery/";
       case "end_user":
       case "user":
       default:
@@ -98,7 +98,7 @@ export default function LoginPage() {
         router.push(redirectUrl);
       }, 1500); // Slightly shorter than the auto-dismiss to ensure user sees the message
 
-      
+
     } catch (apiError) {
       console.error("Login error:", apiError);
 
