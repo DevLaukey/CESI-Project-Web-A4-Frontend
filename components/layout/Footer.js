@@ -76,7 +76,7 @@ function Footer() {
               <ul className="space-y-2 text-sm">
                 <li>
                   <a
-                    href="/register?type=restaurant"
+                    href="/register?type=restaurant_owner"
                     className="text-white hover:text-yellow-400 transition-colors"
                   >
                     <span className="text-white">Become a Partner</span>
@@ -84,7 +84,7 @@ function Footer() {
                 </li>
                 <li>
                   <a
-                    href="/register?type=driver"
+                    href="/register?type=delivery_driver"
                     className="text-white hover:text-yellow-400 transition-colors"
                   >
                     <span className="text-white">Become a Driver</span>

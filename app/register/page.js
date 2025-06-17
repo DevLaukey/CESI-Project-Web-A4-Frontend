@@ -24,7 +24,7 @@ export default function RegisterPage() {
 
   // Validate user type on component mount
   useEffect(() => {
-    const validTypes = ["end_user", "driver", "restaurant"];
+    const validTypes = ["end_user", "delivery_driver", "restaurant_owner"];
     if (!validTypes.includes(userType)) {
       router.push("/register?type=end_user");
     }
@@ -73,15 +73,13 @@ export default function RegisterPage() {
     }
 
     try {
-      // Prepare the registration data with the user type from URL
       const registrationData = {
         email,
         password,
         firstName,
         lastName,
         phone,
-        userType, // This comes from the URL parameter
-        // Send placeholder values for non-essential fields
+        userType, 
         address: "Not provided",
         city: "Not provided",
         postalCode: "00000",
@@ -113,7 +111,6 @@ export default function RegisterPage() {
       console.error("Registration error:", apiError);
 
       if (apiError instanceof ApiError) {
-        // Handle specific API errors with detailed messages
         switch (apiError.status) {
           case 400:
             // Check if it's a password validation error from backend
@@ -147,7 +144,6 @@ export default function RegisterPage() {
             );
             break;
           case 422:
-            // Validation errors
             if (apiError.data && apiError.data.errors) {
               const errorMessages = Object.values(apiError.data.errors).flat();
               setError(errorMessages.join(". "));

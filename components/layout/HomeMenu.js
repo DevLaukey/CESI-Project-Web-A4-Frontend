@@ -45,7 +45,7 @@ export default function HomeMenu() {
               </p>
               <div className="space-y-4">
                 <Link
-                  href="/register?type=driver"
+                  href="/register?type=delivery_driver"
                   className="block w-full bg-primary-dark text-white font-bold py-4 px-6 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg"
                 >
                   <span className="text-white">Start Driving Today</span>
@@ -83,7 +83,7 @@ export default function HomeMenu() {
               </p>
               <div className="space-y-4">
                 <Link
-                  href="/register?type=restaurant"
+                  href="/register?type=restaurant_owner"
                   className="block w-full bg-primary-dark text-white font-bold py-4 px-6 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg"
                 >
                   <span className="text-white">Partner With Us</span>
