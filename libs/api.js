@@ -2,7 +2,6 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
-// API endpoints configuration
 export const API_ENDPOINTS = {
   // Auth endpoints
   REGISTER: "/api/auth/register",
@@ -179,7 +178,6 @@ export class ApiError extends Error {
 // Create and export the API client instance
 export const api = new ApiClient();
 
-// Auth-specific API functions
 export const authAPI = {
   register: async (userData) => {
     return api.post(API_ENDPOINTS.REGISTER, userData);
