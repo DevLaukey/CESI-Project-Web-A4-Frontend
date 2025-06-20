@@ -1,10 +1,11 @@
 "use client";
-import { signIn } from "next-auth/react";
+// Remove this line: import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { authAPI, ApiError } from "@/libs/api";
+import { useAuth } from "@/components/AuthContext";
+import { authAPI } from "@/libs/api";
 import "./styles.css";
 
 export default function LoginPage() {
@@ -17,11 +18,21 @@ export default function LoginPage() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { login, isAuthenticated, userType: authUserType } = useAuth();
 
-  // Get callback URL from search params or default based on user type
-  const callbackUrl = searchParams.get("callbackUrl");
+  // Get redirect URL from search params
+  const redirectUrl =
+    searchParams.get("redirect") || searchParams.get("callbackUrl");
 
-  // Auto-dismiss success message after 3 seconds
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const destination = redirectUrl || getRedirectUrl(authUserType);
+      console.log("User already authenticated, redirecting to:", destination);
+      router.push(destination);
+    }
+  }, [isAuthenticated, authUserType, redirectUrl, router]);
+
   useEffect(() => {
     if (loginSuccess) {
       const timer = setTimeout(() => {
@@ -31,7 +42,6 @@ export default function LoginPage() {
     }
   }, [loginSuccess]);
 
-  // Auto-dismiss error message after 3 seconds
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => {
@@ -41,20 +51,122 @@ export default function LoginPage() {
     }
   }, [error]);
 
-  // Redirect based on user type
-  const getRedirectUrl = (userType, fallbackUrl = "/") => {
-    if (callbackUrl) return callbackUrl;
+  const getRedirectUrl = (userType) => {
+    // First check if there's a redirect URL and if it's appropriate for the user type
+    if (redirectUrl) {
+      const isRestaurantRoute = redirectUrl.startsWith("/restaurant");
+      const isDeliveryRoute = redirectUrl.startsWith("/delivery");
 
+      if (userType === "restaurant_owner" && isRestaurantRoute) {
+        return redirectUrl;
+      }
+      if (userType === "delivery_driver" && isDeliveryRoute) {
+        return redirectUrl;
+      }
+      if (userType === "end_user" && !isRestaurantRoute && !isDeliveryRoute) {
+        return redirectUrl;
+      }
+    }
+
+    // Default redirects based on user type
     switch (userType) {
       case "restaurant_owner":
-        return "/restaurant/";
+        return "/restaurant";
       case "delivery_driver":
-        return "/delivery/";
+        return "/delivery";
       case "end_user":
       case "user":
       default:
         return "/";
     }
+  };
+
+  const handleLoginError = (error) => {
+    console.error("Login error:", error);
+
+    if (error.response) {
+      const status = error.response.status;
+      switch (status) {
+        case 400:
+          return "Please enter a valid email and password.";
+        case 401:
+          return "Invalid email or password. Please try again.";
+        case 403:
+          return "Your account has been suspended. Please contact support.";
+        case 404:
+          return "Login service not available. Please try again later.";
+        case 422:
+          if (error.response.data && error.response.data.errors) {
+            const errorMessages = Object.values(
+              error.response.data.errors
+            ).flat();
+            return errorMessages.join(". ");
+          }
+          return "Please check your email and password format.";
+        case 429:
+          return "Too many login attempts. Please wait a few minutes and try again.";
+        case 500:
+          return "Server error. Please try again in a few minutes.";
+        default:
+          return (
+            error.response.data?.message || "Login failed. Please try again."
+          );
+      }
+    }
+
+    if (error.message) {
+      const errorMessage = error.message.toLowerCase();
+
+      if (
+        errorMessage.includes("network") ||
+        errorMessage.includes("fetch") ||
+        error.name === "TypeError"
+      ) {
+        return "Network error. Please check your internet connection and try again.";
+      }
+
+      if (
+        errorMessage.includes("400") ||
+        errorMessage.includes("bad request")
+      ) {
+        return "Please enter a valid email and password.";
+      }
+
+      if (
+        errorMessage.includes("401") ||
+        errorMessage.includes("unauthorized") ||
+        errorMessage.includes("invalid")
+      ) {
+        return "Invalid email or password. Please try again.";
+      }
+
+      if (errorMessage.includes("403") || errorMessage.includes("forbidden")) {
+        return "Your account has been suspended. Please contact support.";
+      }
+
+      if (errorMessage.includes("404") || errorMessage.includes("not found")) {
+        return "Login service not available. Please try again later.";
+      }
+
+      if (errorMessage.includes("422") || errorMessage.includes("validation")) {
+        return "Please check your email and password format.";
+      }
+
+      if (errorMessage.includes("429") || errorMessage.includes("too many")) {
+        return "Too many login attempts. Please wait a few minutes and try again.";
+      }
+
+      if (
+        errorMessage.includes("500") ||
+        errorMessage.includes("server error")
+      ) {
+        return "Server error. Please try again in a few minutes.";
+      }
+
+      return error.message;
+    }
+
+    return "Login failed. Please try again.";
   };
 
   async function handleFormSubmit(ev) {
@@ -65,102 +177,61 @@ export default function LoginPage() {
     setUserType(null);
 
     try {
-      // First try to authenticate with your API
-      const loginData = {
-        email,
-        password,
-      };
+      const loginData = { email, password };
+      console.log("🔐 Attempting login...");
 
-      console.log("Attempting login...");
-
-      // Using the centralized API
       const response = await authAPI.login(loginData);
+      console.log("📋 Login response:", response);
 
-      // If API login successful
       setLoginSuccess(true);
-      console.log("API login successful:", response.data);
 
-      // Extract user type from response
-      const userData = response.data.user;
-      const detectedUserType =
-        userData.userType || userData.role || userData.type || "customer";
-      setUserType(detectedUserType);
+      const userData = response.user || response.data?.user;
+      const token = response.token || response.data?.token;
 
-      if (response?.error) {
-        // NextAuth signIn failed
-        throw new Error(response.error);
+      if (!userData || !token) {
+        throw new Error("Invalid response format from server");
       }
 
-      // Success - redirect after showing success message briefly
+      const detectedUserType =
+        userData.userType || userData.role || userData.type || "end_user";
+      setUserType(detectedUserType);
+      console.log("👤 User type:", detectedUserType);
+
+      // Login to context (this sets cookies too)
+      login({
+        user: userData,
+        token: token,
+        message: response.message,
+      });
+
+      console.log("✅ Login context updated");
+
+      // Small delay then redirect
       setTimeout(() => {
-        const redirectUrl = getRedirectUrl(detectedUserType);
-        console.log(`Redirecting ${detectedUserType} to ${redirectUrl}`);
-        router.push(redirectUrl);
-      }, 1500); // Slightly shorter than the auto-dismiss to ensure user sees the message
-
-
+        const redirectPath = getRedirectUrl(detectedUserType);
+        console.log(`🎯 Redirecting ${detectedUserType} to ${redirectPath}`);
+        router.push(redirectPath);
+      }, 1000);
     } catch (apiError) {
       console.error("Login error:", apiError);
-
-      if (apiError instanceof ApiError) {
-        // Handle specific API errors with detailed messages
-        switch (apiError.status) {
-          case 400:
-            setError("Please enter a valid email and password.");
-            break;
-          case 401:
-            setError("Invalid email or password. Please try again.");
-            break;
-          case 403:
-            setError(
-              "Your account has been suspended. Please contact support."
-            );
-            break;
-          case 404:
-            setError("Login service not available. Please try again later.");
-            break;
-          case 422:
-            // Validation errors
-            if (apiError.data && apiError.data.errors) {
-              const errorMessages = Object.values(apiError.data.errors).flat();
-              setError(errorMessages.join(". "));
-            } else {
-              setError("Please check your email and password format.");
-            }
-            break;
-          case 429:
-            setError(
-              "Too many login attempts. Please wait a few minutes and try again."
-            );
-            break;
-          case 500:
-            setError("Server error. Please try again in a few minutes.");
-            break;
-          default:
-            setError(apiError.message || "Login failed. Please try again.");
-        }
-      } else {
-        // Handle network or other errors
-        if (
-          apiError.message === "NetworkError" ||
-          apiError.message.includes("fetch")
-        ) {
-          setError(
-            "Network error. Please check your internet connection and try again."
-          );
-        } else {
-          setError("Login failed. Please try again.");
-        }
-      }
+      const errorMessage = handleLoginError(apiError);
+      setError(errorMessage);
     } finally {
       setLoginInProgress(false);
     }
   }
 
-  // Check if form is valid
   const isFormValid = () => {
     return email && password;
   };
+
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <section className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -172,11 +243,15 @@ export default function LoginPage() {
           <p className="text-center text-gray-600 text-sm">
             Sign in to your account
           </p>
+          {redirectUrl && (
+            <p className="text-center text-sm text-blue-600 mt-2">
+              Please sign in to access the requested page
+            </p>
+          )}
         </div>
 
         {/* Toast Container */}
         <div className="fixed top-4 right-4 z-50 space-y-2">
-          {/* Success Toast */}
           {loginSuccess && (
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 shadow-lg min-w-[300px] animate-slide-in-right">
               <div className="text-green-800 font-medium mb-2 flex items-center justify-between">
@@ -220,14 +295,12 @@ export default function LoginPage() {
                   `Welcome back! Redirecting to your ${userType} dashboard...`}
                 {!userType && "Redirecting you to your dashboard..."}
               </div>
-              {/* Progress bar */}
               <div className="w-full bg-green-200 rounded-full h-1 mt-3">
                 <div className="bg-green-500 h-1 rounded-full animate-progress"></div>
               </div>
             </div>
           )}
 
-          {/* Error Toast */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 shadow-lg min-w-[300px] animate-slide-in-right">
               <div className="text-red-800 font-medium mb-1 flex items-center justify-between">
@@ -267,7 +340,6 @@ export default function LoginPage() {
                 </button>
               </div>
               <div className="text-red-700 text-sm">{error}</div>
-              {/* Progress bar */}
               <div className="w-full bg-red-200 rounded-full h-1 mt-3">
                 <div className="bg-red-500 h-1 rounded-full animate-progress"></div>
               </div>
@@ -317,7 +389,6 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Optional: Forgot Password Link */}
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <input
@@ -377,46 +448,18 @@ export default function LoginPage() {
               )}
             </button>
 
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-500">
-                  Or continue with
-                </span>
-              </div>
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Don't have an account?{" "}
+                <Link
+                  href="/register"
+                  className="text-primary hover:text-primary/80 font-medium"
+                >
+                  Sign up here
+                </Link>
+              </p>
             </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                signIn("google", { callbackUrl: getRedirectUrl("customer") })
-              }
-              disabled={loginInProgress}
-              className="w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-50 focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-            >
-              <Image
-                src={"/google.png"}
-                alt={"Google logo"}
-                width={20}
-                height={20}
-              />
-              Continue with Google
-            </button>
           </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{" "}
-              <Link
-                href="/register"
-                className="text-primary hover:text-primary/80 font-medium"
-              >
-                Sign up here
-              </Link>
-            </p>
-          </div>
         </div>
       </div>
     </section>

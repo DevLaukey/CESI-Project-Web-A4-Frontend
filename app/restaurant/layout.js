@@ -1,5 +1,10 @@
-import DashboardLayout from "./DashboardLayout";
+import Header from "@/components/restaurant/Header";
+import ProtectedDashboardLayout from "./ProtectedDashboardLayout";
 
 export default function Layout({ children }) {
-  return <DashboardLayout>{children}</DashboardLayout>;
+  return (
+    <ProtectedDashboardLayout>
+      {children}
+    </ProtectedDashboardLayout>
+  );
 }

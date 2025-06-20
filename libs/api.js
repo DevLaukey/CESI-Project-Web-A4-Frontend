@@ -1,288 +1,415 @@
-// lib/api.js - Global API configuration
+import { createRestaurantData } from "@/types/restaurant";
+import Cookies from "js-cookie";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL_USER;
+const API_BASE_URL_RESTAURANT = process.env.NEXT_PUBLIC_API_URL_RESTAURANT;
+const API_BASE_URL_DRIVER = process.env.NEXT_PUBLIC_API_URL_DRIVER;
 
-export const API_ENDPOINTS = {
-  // Auth endpoints
-  REGISTER: "/api/auth/register",
-  LOGIN: "/api/auth/login",
-  LOGOUT: "/api/logout",
 
-  // User endpoints
-  USER_PROFILE: "/api/user/profile",
-  UPDATE_PROFILE: "/api/user/update",
-
-  // Location endpoints
-  GEOCODE: "/api/location/geocode",
-  REVERSE_GEOCODE: "/api/location/reverse-geocode",
-
-  // Restaurant endpoints
-  RESTAURANTS: "/api/restaurants",
-  RESTAURANT_DETAILS: "/api/restaurants",
-  MENU_ITEMS: "/api/menu",
-
-  // Order endpoints
-  CREATE_ORDER: "/api/orders",
-  ORDER_HISTORY: "/api/orders/history",
-  ORDER_STATUS: "/api/orders/status",
-
-  // Cart endpoints
-  CART: "/api/cart",
-  ADD_TO_CART: "/api/cart/add",
-  UPDATE_CART: "/api/cart/update",
-  REMOVE_FROM_CART: "/api/cart/remove",
-
-  // Rider endpoints
-  RIDER_REGISTER: "/api/rider/register",
-  RIDER_PROFILE: "/api/rider/profile",
-
-  // Partner endpoints
-  PARTNER_REGISTER: "/api/partner/register",
-  PARTNER_PROFILE: "/api/partner/profile",
+// Cookie configuration
+const COOKIE_OPTIONS = {
+  expires: 7, // 7 days
+  secure: process.env.NODE_ENV === "production", // Only secure in production
+  sameSite: "strict",
+  path: "/",
 };
 
-// HTTP methods
-export const HTTP_METHODS = {
-  GET: "GET",
-  POST: "POST",
-  PUT: "PUT",
-  PATCH: "PATCH",
-  DELETE: "DELETE",
+// Get token from cookies
+const getToken = () => {
+  return Cookies.get("authToken");
 };
 
-// Default headers
-const defaultHeaders = {
-  "Content-Type": "application/json",
+// Set auth data in cookies
+const setAuthData = (token, userData) => {
+  Cookies.set("authToken", token, COOKIE_OPTIONS);
+  Cookies.set("userData", JSON.stringify(userData), COOKIE_OPTIONS);
 };
 
-// API client class
-class ApiClient {
-  constructor(baseUrl = API_BASE_URL) {
-    this.baseUrl = baseUrl;
-    this.token = null;
+// Clear auth data from cookies
+const clearAuthData = () => {
+  Cookies.remove("authToken");
+  Cookies.remove("userData");
+};
+
+// Generic API call function
+const apiCall = async (endpoint, options = {}, baseUrl = API_BASE_URL) => {
+  const token = getToken();
+
+  const config = {
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+    ...options,
+  };
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Set authentication token
-  setAuthToken(token) {
-    this.token = token;
-  }
+  try {
+    const response = await fetch(`${baseUrl}${endpoint}`, config);
 
-  // Get headers with auth token if available
-  getHeaders(customHeaders = {}) {
-    const headers = { ...defaultHeaders, ...customHeaders };
-
-    if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`;
-    }
-
-    return headers;
-  }
-
-  // Generic request method
-  async request(endpoint, options = {}) {
-    const url = `${this.baseUrl}${endpoint}`;
-    const config = {
-      method: options.method || HTTP_METHODS.GET,
-      headers: this.getHeaders(options.headers),
-      ...options,
-    };
-
-    // Add body for non-GET requests
-    if (options.data && config.method !== HTTP_METHODS.GET) {
-      config.body = JSON.stringify(options.data);
-    }
-
-    try {
-      const response = await fetch(url, config);
-
-      // Handle different response types
-      const contentType = response.headers.get("content-type");
-      let data;
-
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json();
-      } else {
-        data = await response.text();
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearAuthData();
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
+        throw new Error("Session expired. Please login again.");
       }
 
-      if (!response.ok) {
-        throw new ApiError(
-          data.message || `HTTP error! status: ${response.status}`,
-          response.status,
-          data
-        );
+      let errorMessage = `HTTP Error ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch {
+        errorMessage = response.statusText || errorMessage;
       }
 
-      return {
-        data,
-        status: response.status,
-        headers: response.headers,
-      };
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError(`Network error: ${error.message}`, 0, error);
+      throw new Error(errorMessage);
     }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error;
+  }
+};
+
+// Server-side API call function (for middleware or server components)
+export const serverApiCall = async (endpoint, options = {}, request = null) => {
+  let token = null;
+
+  // Extract token from request cookies if available (for middleware)
+  if (request && request.cookies) {
+    token = request.cookies.get("authToken")?.value;
   }
 
-  // Convenience methods for different HTTP verbs
-  async get(endpoint, params = {}, options = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    const url = queryString ? `${endpoint}?${queryString}` : endpoint;
-    return this.request(url, { ...options, method: HTTP_METHODS.GET });
+  const config = {
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+    ...options,
+  };
+
+  // Add authorization header if token exists
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
 
-  async post(endpoint, data, options = {}) {
-    return this.request(endpoint, {
-      ...options,
-      method: HTTP_METHODS.POST,
-      data,
-    });
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+
+    if (!response.ok) {
+      let errorMessage = `HTTP Error ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch (parseError) {
+        errorMessage = response.statusText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Server API Error:", error);
+    throw error;
   }
+};
 
-  async put(endpoint, data, options = {}) {
-    return this.request(endpoint, {
-      ...options,
-      method: HTTP_METHODS.PUT,
-      data,
-    });
-  }
-
-  async patch(endpoint, data, options = {}) {
-    return this.request(endpoint, {
-      ...options,
-      method: HTTP_METHODS.PATCH,
-      data,
-    });
-  }
-
-  async delete(endpoint, options = {}) {
-    return this.request(endpoint, {
-      ...options,
-      method: HTTP_METHODS.DELETE,
-    });
-  }
-}
-
-// Custom error class for API errors
-export class ApiError extends Error {
-  constructor(message, status, data) {
-    super(message);
-    this.name = "ApiError";
-    this.status = status;
-    this.data = data;
-  }
-}
-
-// Create and export the API client instance
-export const api = new ApiClient();
-
+// Enhanced Auth API calls with cookie management
 export const authAPI = {
-  register: async (userData) => {
-    return api.post(API_ENDPOINTS.REGISTER, userData);
+  login: async (credentials) => {
+    try {
+      const response = await apiCall("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify(credentials),
+      }, API_BASE_URL);
+
+      // If login is successful, store auth data in cookies
+      if (response.token && response.user) {
+        setAuthData(response.token, response.user);
+      }
+
+      return response;
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error;
+    }
   },
 
-  login: async (credentials) => {
-    return api.post(API_ENDPOINTS.LOGIN, credentials);
+  register: async (userData) => {
+    try {
+      const response = await apiCall("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify(userData),
+      }, API_BASE_URL);
+
+      // If registration is successful and includes login, store auth data
+      if (response.token && response.user) {
+        setAuthData(response.token, response.user);
+      }
+
+      return response;
+    } catch (error) {
+      console.error("Registration error:", error);
+      throw error;
+    }
   },
 
   logout: async () => {
-    return api.post(API_ENDPOINTS.LOGOUT);
+    try {
+      // Call logout API
+      await apiCall("/api/auth/logout", {
+        method: "POST",
+      }, API_BASE_URL);
+    } catch (error) {
+      console.error("Logout API error:", error);
+      // Continue with local logout even if API fails
+    } finally {
+      // Always clear auth data locally
+      clearAuthData();
+    }
   },
-};
 
-// User-specific API functions
-export const userAPI = {
-  getProfile: async () => {
-    return api.get(API_ENDPOINTS.USER_PROFILE);
+  refreshToken: async () => {
+    try {
+      const response = await apiCall("/api/auth/refresh", {
+        method: "POST",
+      }, API_BASE_URL);
+
+      // Update token in cookies if refresh is successful
+      if (response.token) {
+        const userData = Cookies.get("userData");
+        if (userData) {
+          setAuthData(response.token, JSON.parse(userData));
+        }
+      }
+
+      return response;
+    } catch (error) {
+      console.error("Token refresh error:", error);
+      // Clear auth data if refresh fails
+      clearAuthData();
+      throw error;
+    }
   },
+
+  getProfile: () => apiCall("/api/auth/profile", {}, API_BASE_URL),
 
   updateProfile: async (userData) => {
-    return api.patch(API_ENDPOINTS.UPDATE_PROFILE, userData);
+    try {
+      const response = await apiCall("/api/auth/profile", {
+        method: "PUT",
+        body: JSON.stringify(userData),
+      }, API_BASE_URL);
+
+      // Update user data in cookies if update is successful
+      if (response.user) {
+        const token = getToken();
+        if (token) {
+          setAuthData(token, response.user);
+        }
+      }
+
+      return response;
+    } catch (error) {
+      console.error("Profile update error:", error);
+      throw error;
+    }
   },
+
+  verifyToken: () =>
+    apiCall("/api/auth/verify", {
+      method: "POST",
+    }, API_BASE_URL),
 };
 
-// Location-specific API functions
-export const locationAPI = {
-  geocode: async (address) => {
-    return api.post(API_ENDPOINTS.GEOCODE, { address });
-  },
-
-  reverseGeocode: async (lat, lng) => {
-    return api.post(API_ENDPOINTS.REVERSE_GEOCODE, { lat, lng });
-  },
-};
-
-// Restaurant-specific API functions
+// Restaurant API calls
 export const restaurantAPI = {
-  getRestaurants: async (location, filters = {}) => {
-    return api.get(API_ENDPOINTS.RESTAURANTS, { location, ...filters });
-  },
+  createRestaurantData: (profileData) =>
+    apiCall(
+      "/api/restaurants",
+      {
+        method: "POST",
+        body: JSON.stringify(profileData),
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+  updateProfile: (profileData) =>
+    apiCall(
+      "/api/restaurant/profile",
+      {
+        method: "PATCH",
+        body: JSON.stringify(profileData),
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+  getOrders: () =>
+    apiCall("/api/restaurant/orders", {}, API_BASE_URL_RESTAURANT),
+  updateOrderStatus: (orderId, status) =>
+    apiCall(
+      `/api/restaurant/orders/${orderId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ status }),
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+  getMenu: () => apiCall("/api/restaurant/menu", {}, API_BASE_URL_RESTAURANT),
+  addMenuItem: (item) =>
+    apiCall(
+      "/api/restaurant/menu",
+      {
+        method: "POST",
+        body: JSON.stringify(item),
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+  getMenuItem: (itemId) =>
+    apiCall(`/api/restaurant/menu/${itemId}`, {}, API_BASE_URL_RESTAURANT),
+  updateMenuItem: (itemId, item) =>
+    apiCall(
+      `/api/restaurant/menu/${itemId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(item),
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+  deleteMenuItem: (itemId) =>
+    apiCall(
+      `/api/restaurant/menu/${itemId}`,
+      {
+        method: "DELETE",
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+  getDashboardStats: () =>
+    apiCall("/api/restaurant/dashboard", {}, API_BASE_URL_RESTAURANT),
+  completeOnboarding: async (onboardingData) => {
+    try {
+      // Create FormData for file uploads
+      const formData = new FormData();
 
-  getRestaurantDetails: async (restaurantId) => {
-    return api.get(`${API_ENDPOINTS.RESTAURANT_DETAILS}/${restaurantId}`);
-  },
+      // Add all text fields
+      Object.keys(onboardingData).forEach((key) => {
+        if (key === "profilePicture" || key === "businessLicenseFile") {
+          return;
+        } else if (
+          typeof onboardingData[key] === "object" &&
+          onboardingData[key] !== null
+        ) {
+          formData.append(key, JSON.stringify(onboardingData[key]));
+        } else if (
+          onboardingData[key] !== null &&
+          onboardingData[key] !== undefined
+        ) {
+          formData.append(key, onboardingData[key]);
+        }
+      });
 
-  getMenuItems: async (restaurantId) => {
-    return api.get(`${API_ENDPOINTS.MENU_ITEMS}/${restaurantId}`);
+      if (onboardingData.profilePicture) {
+        formData.append("profilePicture", onboardingData.profilePicture);
+      }
+      if (onboardingData.businessLicenseFile) {
+        formData.append(
+          "businessLicenseFile",
+          onboardingData.businessLicenseFile
+        );
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL_RESTAURANT}/restaurants`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        let errorMessage = `HTTP Error ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+
+      if (data.user) {
+        const token = getToken();
+        if (token) {
+          setAuthData(token, data.user);
+        }
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Restaurant onboarding error:", error);
+      throw error;
+    }
+  },
+  getOwnerRestaurant: async () => {
+    apiCall("/api/restaurants/owner/me", {}, API_BASE_URL_RESTAURANT)
   },
 };
 
-// Cart-specific API functions
-export const cartAPI = {
-  getCart: async () => {
-    return api.get(API_ENDPOINTS.CART);
-  },
-
-  addToCart: async (item) => {
-    return api.post(API_ENDPOINTS.ADD_TO_CART, item);
-  },
-
-  updateCartItem: async (itemId, quantity) => {
-    return api.patch(`${API_ENDPOINTS.UPDATE_CART}/${itemId}`, { quantity });
-  },
-
-  removeFromCart: async (itemId) => {
-    return api.delete(`${API_ENDPOINTS.REMOVE_FROM_CART}/${itemId}`);
-  },
+// Driver API calls
+export const driverAPI = {
+  getAvailableDeliveries: () => apiCall("/driver/deliveries/available"),
+  acceptDelivery: (deliveryId) =>
+    apiCall(`/driver/deliveries/${deliveryId}/accept`, {
+      method: "POST",
+    }),
+  updateDeliveryStatus: (deliveryId, status) =>
+    apiCall(`/driver/deliveries/${deliveryId}`, {
+      method: "PUT",
+      body: JSON.stringify({ status }),
+    }),
+  getEarnings: () => apiCall("/driver/earnings"),
+  updateLocation: (latitude, longitude) =>
+    apiCall("/driver/location", {
+      method: "PUT",
+      body: JSON.stringify({ latitude, longitude }),
+    }),
+  setAvailability: (isAvailable) =>
+    apiCall("/driver/availability", {
+      method: "PUT",
+      body: JSON.stringify({ isAvailable }),
+    }),
 };
 
-// Order-specific API functions
-export const orderAPI = {
-  createOrder: async (orderData) => {
-    return api.post(API_ENDPOINTS.CREATE_ORDER, orderData);
-  },
-
-  getOrderHistory: async () => {
-    return api.get(API_ENDPOINTS.ORDER_HISTORY);
-  },
-
-  getOrderStatus: async (orderId) => {
-    return api.get(`${API_ENDPOINTS.ORDER_STATUS}/${orderId}`);
-  },
+// Customer API calls
+export const customerAPI = {
+  getRestaurants: () => apiCall("/restaurants"),
+  getRestaurantMenu: (restaurantId) =>
+    apiCall(`/restaurants/${restaurantId}/menu`),
+  placeOrder: (orderData) =>
+    apiCall("/orders", {
+      method: "POST",
+      body: JSON.stringify(orderData),
+    }),
+  getOrderHistory: () => apiCall("/orders/history"),
+  getOrderStatus: (orderId) => apiCall(`/orders/${orderId}`),
+  cancelOrder: (orderId) =>
+    apiCall(`/orders/${orderId}/cancel`, {
+      method: "PUT",
+    }),
 };
 
-// Rider-specific API functions
-export const riderAPI = {
-  register: async (riderData) => {
-    return api.post(API_ENDPOINTS.RIDER_REGISTER, riderData);
-  },
+// Export helper functions for external use
+export { getToken, setAuthData, clearAuthData };
 
-  getProfile: async () => {
-    return api.get(API_ENDPOINTS.RIDER_PROFILE);
-  },
-};
-
-// Partner-specific API functions
-export const partnerAPI = {
-  register: async (partnerData) => {
-    return api.post(API_ENDPOINTS.PARTNER_REGISTER, partnerData);
-  },
-
-  getProfile: async () => {
-    return api.get(API_ENDPOINTS.PARTNER_PROFILE);
-  },
-};
-
-export default api;
+export default apiCall;

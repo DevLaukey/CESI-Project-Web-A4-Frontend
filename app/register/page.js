@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { authAPI, ApiError } from "@/libs/api";
+import { authAPI } from "@/libs/api";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -47,6 +47,47 @@ export default function RegisterPage() {
       },
     };
   };
+
+  const handleRegisterError = (error) => {
+    if (error.response) {
+      const status = error.response.status;
+
+      switch (status) {
+        case 400:
+          setError("Invalid request. Please check your input.");
+          break;
+        case 404:
+          setError("Registration endpoint not found. Please try again later.");
+          break;
+        case 401:
+          setError("Unauthorized access. Please re-authenticate first.");
+          break;
+        case 409:
+          setError("An account with this email already exists.");
+          break;  
+        case 422:
+          if (error.response.data && error.response.data.errors) {
+            const errorMessages = Object.values(error.response.data.errors).flat();
+            setError(errorMessages.join(". "));
+          } else {
+            setError("Please check your information and try again.");
+          }
+          break;
+        case 500:
+          setError("Server error. Please try again later.");
+          break;
+        default:
+          setError("An unexpected error occurred. Please try again.");
+    }
+  }
+
+  if (error.message) {
+    setError(error.message);
+    return;
+  }
+
+  return "Network error. Please check your internet connection and try again.";
+  }
 
   async function handleFormSubmit(ev) {
     ev.preventDefault();
@@ -94,13 +135,12 @@ export default function RegisterPage() {
       setUserCreated(true);
       console.log("Registration successful:", response.data);
 
-      // Optional: Auto-redirect based on user type after success
       setTimeout(() => {
         switch (userType) {
-          case "driver":
+          case "delivery_driver":
             router.push("/onboarding/driver");
             break;
-          case "restaurant":
+          case "restaurant_owner":
             router.push("/onboarding/restaurant");
             break;
           default:
@@ -109,68 +149,13 @@ export default function RegisterPage() {
       }, 2000);
     } catch (apiError) {
       console.error("Registration error:", apiError);
-
-      if (apiError instanceof ApiError) {
-        switch (apiError.status) {
-          case 400:
-            // Check if it's a password validation error from backend
-            if (apiError.data && apiError.data.message) {
-              const backendMessage = apiError.data.message.toLowerCase();
-              if (backendMessage.includes("password")) {
-                setError(
-                  "Password must contain at least 6 characters, including uppercase, lowercase, and special characters (!@#$%^&*)."
-                );
-              } else if (backendMessage.includes("email")) {
-                setError("Please enter a valid email address.");
-              } else if (backendMessage.includes("phone")) {
-                setError("Please enter a valid phone number.");
-              } else {
-                setError(apiError.data.message);
-              }
-            } else {
-              setError(
-                "Invalid information provided. Please check all fields and try again."
-              );
-            }
-            break;
-          case 404:
-            setError(
-              "Registration endpoint not found. Please contact support."
-            );
-            break;
-          case 409:
-            setError(
-              "An account with this email already exists. Please try logging in instead."
-            );
-            break;
-          case 422:
-            if (apiError.data && apiError.data.errors) {
-              const errorMessages = Object.values(apiError.data.errors).flat();
-              setError(errorMessages.join(". "));
-            } else {
-              setError("Please check your information and try again.");
-            }
-            break;
-          case 500:
-            setError("Server error. Please try again in a few minutes.");
-            break;
-          default:
-            setError(
-              apiError.message || "Registration failed. Please try again."
-            );
-        }
-      } else {
-        // Handle network or other errors
-        setError(
-          "Network error. Please check your internet connection and try again."
-        );
-      }
+      handleRegisterError(apiError);
+      setUserCreated(false);
     } finally {
       setCreatingUser(false);
     }
   }
 
-  // Check if form is valid
   const isFormValid = () => {
     return email && password && firstName && lastName && phone;
   };
