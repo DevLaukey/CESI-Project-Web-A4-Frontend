@@ -24,6 +24,9 @@ import {
   Power,
   PowerOff,
   Loader2,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
 } from "lucide-react";
 
 const NAVIGATION_ITEMS = [
@@ -172,6 +175,23 @@ function RestaurantStatus({ restaurant, onToggleStatus }) {
       <p className="text-xs opacity-90 mb-3">
         {restaurant.isOpen ? "Ready to receive orders" : "Not accepting orders"}
       </p>
+
+      {/* Verification Status */}
+      <div
+        className={`flex items-center space-x-2 text-xs mb-3 p-2 rounded ${
+          restaurant.isVerified ? "bg-white/20" : "bg-yellow-500/20"
+        }`}
+      >
+        {restaurant.isVerified ? (
+          <CheckCircle size={14} />
+        ) : (
+          <AlertCircle size={14} />
+        )}
+        <span>
+          {restaurant.isVerified ? "Verified" : "Pending Verification"}
+        </span>
+      </div>
+
       <button
         onClick={handleToggle}
         disabled={isToggling}
@@ -192,7 +212,7 @@ function RestaurantStatus({ restaurant, onToggleStatus }) {
   );
 }
 
-// Restaurant Info Card Component
+// Restaurant Info Card Component - Updated for actual API structure
 function RestaurantInfoCard({ restaurant }) {
   if (!restaurant) {
     return (
@@ -207,6 +227,14 @@ function RestaurantInfoCard({ restaurant }) {
     );
   }
 
+  // Format currency for EUR
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+    }).format(amount);
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       <div className="flex items-start justify-between mb-4">
@@ -214,21 +242,45 @@ function RestaurantInfoCard({ restaurant }) {
           <h2 className="text-xl font-bold text-gray-900">{restaurant.name}</h2>
           <p className="text-gray-600 text-sm mt-1 flex items-center space-x-2">
             <UtensilsCrossed size={14} />
-            <span>
-              {restaurant.cuisine} • {restaurant.priceRange}
-            </span>
+            <span>{restaurant.cuisineType}</span>
           </p>
         </div>
         <div className="flex items-center space-x-1">
           <Star className="text-yellow-400 fill-current" size={16} />
-          <span className="font-medium text-gray-900">{restaurant.rating}</span>
+          <span className="font-medium text-gray-900">
+            {parseFloat(restaurant.rating).toFixed(1)}
+          </span>
           <span className="text-gray-500 text-sm">
             ({restaurant.reviewCount})
           </span>
         </div>
       </div>
 
-      <p className="text-gray-700 mb-4">{restaurant.description}</p>
+      {restaurant.description && (
+        <p className="text-gray-700 mb-4">{restaurant.description}</p>
+      )}
+
+      {/* Business Details */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+        <div className="text-center">
+          <p className="text-sm font-medium text-gray-900">
+            {formatCurrency(restaurant.deliveryFee)}
+          </p>
+          <p className="text-xs text-gray-500">Delivery Fee</p>
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-medium text-gray-900">
+            {formatCurrency(restaurant.minimumOrder)}
+          </p>
+          <p className="text-xs text-gray-500">Minimum Order</p>
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-medium text-gray-900">
+            {restaurant.averageDeliveryTime} min
+          </p>
+          <p className="text-xs text-gray-500">Prep Time</p>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
         <div className="space-y-3">
@@ -237,10 +289,11 @@ function RestaurantInfoCard({ restaurant }) {
             <div>
               <p className="text-gray-500 mb-1">Address</p>
               <p className="text-gray-900">
-                {restaurant.address.street}
+                {restaurant.address}
                 <br />
-                {restaurant.address.city}, {restaurant.address.state}{" "}
-                {restaurant.address.zipCode}
+                {restaurant.city}, {restaurant.postalCode}
+                <br />
+                {restaurant.country}
               </p>
             </div>
           </div>
@@ -250,20 +303,13 @@ function RestaurantInfoCard({ restaurant }) {
             <Phone size={16} className="text-gray-500 mt-0.5" />
             <div>
               <p className="text-gray-500 mb-1">Contact</p>
-              <p className="text-gray-900">{restaurant.phone}</p>
-              <div className="flex items-center space-x-1 mt-1">
-                <Mail size={14} className="text-gray-500" />
-                <p className="text-gray-900">{restaurant.email}</p>
-              </div>
-              {restaurant.website && (
+              {restaurant.phone && (
+                <p className="text-gray-900">{restaurant.phone}</p>
+              )}
+              {restaurant.email && (
                 <div className="flex items-center space-x-1 mt-1">
-                  <Globe size={14} className="text-gray-500" />
-                  <a
-                    href={restaurant.website}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Website
-                  </a>
+                  <Mail size={14} className="text-gray-500" />
+                  <p className="text-gray-900">{restaurant.email}</p>
                 </div>
               )}
             </div>
@@ -286,13 +332,22 @@ function RestaurantInfoCard({ restaurant }) {
           </div>
         </div>
       )}
+
+      {restaurant.businessLicense && (
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <p className="text-gray-500 text-sm mb-1">Business License</p>
+          <p className="text-gray-900 text-sm font-mono">
+            {restaurant.businessLicense}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
-// Operating Hours Component
-function OperatingHours({ operatingHours }) {
-  if (!operatingHours) {
+// Operating Hours Component - Updated for actual API structure
+function OperatingHours({ openingHours }) {
+  if (!openingHours) {
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-pulse">
         <div className="h-6 bg-gray-300 rounded mb-4"></div>
@@ -308,50 +363,71 @@ function OperatingHours({ operatingHours }) {
     );
   }
 
-  const days = [
-    { key: "monday", label: "Monday" },
-    { key: "tuesday", label: "Tuesday" },
-    { key: "wednesday", label: "Wednesday" },
-    { key: "thursday", label: "Thursday" },
-    { key: "friday", label: "Friday" },
-    { key: "saturday", label: "Saturday" },
-    { key: "sunday", label: "Sunday" },
-  ];
+  // Convert HHMM number to readable time string
+  const formatTime = (timeNumber) => {
+    if (!timeNumber) return "";
+    const hours = Math.floor(timeNumber / 100);
+    const minutes = timeNumber % 100;
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}`;
+  };
 
-  const today = new Date().toLocaleDateString("en", { weekday: "lowercase" });
+  // Map numeric day indices to day names
+  const getDayName = (index) => {
+    const days = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    return days[parseInt(index)];
+  };
+
+  const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       <div className="flex items-center space-x-2 mb-4">
         <Clock size={20} className="text-gray-700" />
-        <h3 className="text-lg font-bold text-gray-900">Operating Hours</h3>
+        <h3 className="text-lg font-bold text-gray-900">Opening Hours</h3>
       </div>
       <div className="space-y-2">
-        {days.map((day) => (
-          <div
-            key={day.key}
-            className={`flex justify-between items-center py-2 px-3 rounded-lg ${
-              day.key === today ? "bg-blue-50 border border-blue-200" : ""
-            }`}
-          >
-            <span
-              className={`font-medium ${
-                day.key === today ? "text-blue-900" : "text-gray-700"
+        {Object.entries(openingHours).map(([dayIndex, hours]) => {
+          const isToday = parseInt(dayIndex) === today;
+          return (
+            <div
+              key={dayIndex}
+              className={`flex justify-between items-center py-2 px-3 rounded-lg ${
+                isToday ? "bg-blue-50 border border-blue-200" : ""
               }`}
             >
-              {day.label}
-            </span>
-            <span
-              className={`text-sm ${
-                day.key === today
-                  ? "text-blue-700 font-medium"
-                  : "text-gray-600"
-              }`}
-            >
-              {operatingHours[day.key] || "Closed"}
-            </span>
-          </div>
-        ))}
+              <span
+                className={`font-medium ${
+                  isToday ? "text-blue-900" : "text-gray-700"
+                }`}
+              >
+                {getDayName(dayIndex)}
+              </span>
+              <span
+                className={`text-sm ${
+                  isToday
+                    ? "text-blue-700 font-medium"
+                    : hours.isClosed
+                    ? "text-red-600"
+                    : "text-gray-600"
+                }`}
+              >
+                {hours.isClosed
+                  ? "Closed"
+                  : `${formatTime(hours.open)} - ${formatTime(hours.close)}`}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -381,6 +457,10 @@ function DashboardLayoutContent({ children }) {
   const [error, setError] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Onboarding check state
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
+  const [hasRestaurant, setHasRestaurant] = useState(false);
+
   // Notifications state
   const [notifications, setNotifications] = useState([
     {
@@ -408,25 +488,47 @@ function DashboardLayoutContent({ children }) {
 
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // Fetch restaurant data
+  // Check if restaurant owner has completed onboarding
   useEffect(() => {
-    const fetchRestaurantData = async () => {
-      try {
-        setLoading(true);
-        setError("");
+    const checkRestaurantOnboarding = async () => {
+      if (user?.userType !== "restaurant_owner") {
+        setIsCheckingOnboarding(false);
+        return;
+      }
 
-        console.log("Fetching restaurant data...");
+      try {
+        console.log("Checking restaurant onboarding status...");
+        // Updated to use getOwnerRestaurant which matches your API response
         const response = await restaurantAPI.getOwnerRestaurant();
-        console.log("Restaurant API response:", response);
+        console.log("Restaurant data response:", response);
 
         if (response.success && response.restaurant) {
+          setHasRestaurant(true);
           setRestaurant(response.restaurant);
         } else {
-          setError("Failed to load restaurant data");
+          setHasRestaurant(false);
+          console.log("No restaurant found, redirecting to onboarding...");
+
+
+
+          return;
         }
       } catch (error) {
-        console.error("Error fetching restaurant data:", error);
+        console.error("Error checking restaurant onboarding:", error);
 
+        // If we get a 404 or similar error, it likely means no restaurant exists
+        if (
+          error.response?.status === 404 ||
+          error.message?.includes("not found") ||
+          error.message?.includes("No restaurant")
+        ) {
+          setHasRestaurant(false);
+          console.log("Restaurant not found, redirecting to onboarding...");
+          router.push("/onboarding/restaurant");
+          return;
+        }
+
+        // For other errors, show error message
         if (error.message && error.message.includes("Unexpected token")) {
           setError("Authentication failed. Please log in again.");
           setTimeout(() => router.push("/login"), 2000);
@@ -434,12 +536,16 @@ function DashboardLayoutContent({ children }) {
           setError("Failed to load restaurant data. Please try again.");
         }
       } finally {
+        setIsCheckingOnboarding(false);
         setLoading(false);
       }
     };
 
     if (user?.userType === "restaurant_owner") {
-      fetchRestaurantData();
+      checkRestaurantOnboarding();
+    } else {
+      setIsCheckingOnboarding(false);
+      setLoading(false);
     }
   }, [user, router]);
 
@@ -485,6 +591,51 @@ function DashboardLayoutContent({ children }) {
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);
+
+  // Show loading spinner while checking onboarding or loading restaurant data
+  if (isCheckingOnboarding || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2
+            size={48}
+            className="animate-spin text-yellow-500 mx-auto mb-4"
+          />
+          <p className="text-gray-600">
+            {isCheckingOnboarding
+              ? "Checking restaurant setup..."
+              : "Loading restaurant data..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  console.log(
+    "Restaurant data loaded:",
+    isCheckingOnboarding,
+    hasRestaurant,
+    hasRestaurant ? restaurant.name : "No restaurant"
+  );
+  // If user is restaurant owner but no restaurant found, they should be redirected
+  // This is a fallback in case the redirect in useEffect doesn't work
+  if (
+    user?.userType === "restaurant_owner" &&
+    !hasRestaurant &&
+    !isCheckingOnboarding
+  ) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">
+            
+            Redirecting to restaurant setup...
+          </p>
+          <Loader2 size={32} className="animate-spin text-yellow-500 mx-auto" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -574,9 +725,7 @@ function DashboardLayoutContent({ children }) {
                     <RestaurantInfoCard restaurant={restaurant} />
                   </div>
                   <div>
-                    <OperatingHours
-                      operatingHours={restaurant?.operatingHours}
-                    />
+                    <OperatingHours openingHours={restaurant?.openingHours} />
                   </div>
                 </div>
               </div>
