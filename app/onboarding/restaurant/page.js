@@ -18,51 +18,41 @@ export default function RestaurantOnboarding() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  // Address validation state
-  const [addressValidation, setAddressValidation] = useState({
-    isValidating: false,
-    isValid: false,
-    coordinates: null,
-    suggestion: null,
-    error: null,
-  });
-
-  // Form data matching your API requirements exactly
+  // Form data matching backend validation schema exactly
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    cuisine: "", // Changed from cuisineType to cuisine
+    cuisineType: "", // Changed from 'cuisine' to match backend
     phone: "",
     email: "",
-    website: "",
-    priceRange: "$",
-    address: {
-      street: "",
-      city: "",
-      state: "",
-      zipCode: "",
-      country: "US",
-      latitude: null,
-      longitude: null,
-    },
 
-    // Operating Hours in backend format (string format HH:MM-HH:MM)
-    operatingHours: {
-      monday: "11:00-22:00",
-      tuesday: "11:00-22:00",
-      wednesday: "11:00-22:00",
-      thursday: "11:00-23:00",
-      friday: "11:00-23:00",
-      saturday: "10:00-23:00",
-      sunday: "10:00-21:00",
+    // Flattened address structure to match backend
+    address: "", // Street address
+    city: "",
+    postalCode: "", // Changed from zipCode
+    country: "France", // Default as per backend
+    latitude: null,
+    longitude: null,
+
+    // Business settings
+    deliveryFee: 0, // Added to match backend
+    minimumOrder: 0, // Changed to number
+    averageDeliveryTime: 30, // Changed to number
+
+    // Opening hours in backend format (numeric keys, HHMM format)
+    openingHours: {
+      0: { open: 1000, close: 2100, isClosed: false }, // Sunday
+      1: { open: 1100, close: 2200, isClosed: false }, // Monday
+      2: { open: 1100, close: 2200, isClosed: false }, // Tuesday
+      3: { open: 1100, close: 2200, isClosed: false }, // Wednesday
+      4: { open: 1100, close: 2300, isClosed: false }, // Thursday
+      5: { open: 1100, close: 2300, isClosed: false }, // Friday
+      6: { open: 1000, close: 2300, isClosed: false }, // Saturday
     },
 
     tags: [],
     businessLicense: "",
   });
-
-  // File upload state
-  const [businessLicenseFile, setBusinessLicenseFile] = useState(null);
 
   const totalSteps = 3;
 
@@ -116,15 +106,15 @@ export default function RestaurantOnboarding() {
     "late-night",
   ];
 
-  // Days of the week for operating hours
+  // Days mapping for opening hours
   const daysOfWeek = [
-    { key: "monday", label: "Monday" },
-    { key: "tuesday", label: "Tuesday" },
-    { key: "wednesday", label: "Wednesday" },
-    { key: "thursday", label: "Thursday" },
-    { key: "friday", label: "Friday" },
-    { key: "saturday", label: "Saturday" },
-    { key: "sunday", label: "Sunday" },
+    { key: 1, label: "Monday", index: 1 },
+    { key: 2, label: "Tuesday", index: 2 },
+    { key: 3, label: "Wednesday", index: 3 },
+    { key: 4, label: "Thursday", index: 4 },
+    { key: 5, label: "Friday", index: 5 },
+    { key: 6, label: "Saturday", index: 6 },
+    { key: 0, label: "Sunday", index: 0 },
   ];
 
   // Check authentication using cookie-based system
@@ -168,122 +158,46 @@ export default function RestaurantOnboarding() {
     checkAuth();
   }, [router]);
 
-  // Debounced address validation
-  useEffect(() => {
-    const validateAddress = async () => {
-      if (!formData.address || !formData.city || !formData.postalCode) {
-        setAddressValidation({
-          isValidating: false,
-          isValid: false,
-          coordinates: null,
-          suggestion: null,
-          error: null,
-        });
-        return;
-      }
-
-      const timeoutId = setTimeout(async () => {
-        setAddressValidation((prev) => ({
-          ...prev,
-          isValidating: true,
-          error: null,
-        }));
-
-        try {
-          const coordinates = await geocodeAddress(
-            formData.address,
-            formData.city,
-            formData.postalCode,
-            formData.country
-          );
-
-          if (coordinates) {
-            setAddressValidation({
-              isValidating: false,
-              isValid: true,
-              coordinates,
-              suggestion: null,
-              error: null,
-            });
-
-            // Update form data with coordinates
-            setFormData((prev) => ({
-              ...prev,
-              latitude: coordinates.latitude,
-              longitude: coordinates.longitude,
-            }));
-          } else {
-            setAddressValidation({
-              isValidating: false,
-              isValid: false,
-              coordinates: null,
-              suggestion: null,
-              error: "Address not found. Please check your address details.",
-            });
-          }
-        } catch (error) {
-          console.error("Address validation error:", error);
-          setAddressValidation({
-            isValidating: false,
-            isValid: false,
-            coordinates: null,
-            suggestion: null,
-            error: "Unable to validate address. Please try again.",
-          });
-        }
-      }, 1000); // 1 second debounce
-
-      return () => clearTimeout(timeoutId);
-    };
-
-    validateAddress();
-  }, [formData.address, formData.city, formData.postalCode, formData.country]);
-
   const handleInputChange = (field, value) => {
-    if (field.startsWith("address.")) {
-      const addressField = field.replace("address.", "");
-      setFormData((prev) => ({
-        ...prev,
-        address: {
-          ...prev.address,
-          [addressField]: value,
-        },
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
-    }
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
   };
 
-  const handleOperatingHoursChange = (day, field, value) => {
-    if (field === "closed") {
-      // If closing the restaurant for this day, set to "Closed"
-      setFormData((prev) => ({
-        ...prev,
-        operatingHours: {
-          ...prev.operatingHours,
-          [day]: value ? "Closed" : "11:00-22:00", // Default hours when reopening
-        },
-      }));
-    } else {
-      // Update open or close time
-      const currentHours = formData.operatingHours[day];
-      if (currentHours === "Closed") return; // Don't update if closed
+  // Convert time string (HH:MM) to HHMM number format
+  const timeStringToNumber = (timeString) => {
+    if (!timeString) return 1100; // Default 11:00
+    const [hours, minutes] = timeString.split(":").map(Number);
+    return hours * 100 + minutes;
+  };
 
-      const [openTime, closeTime] = currentHours.split("-");
-      const newHours =
-        field === "open" ? `${value}-${closeTime}` : `${openTime}-${value}`;
+  // Convert HHMM number to HH:MM string format
+  const timeNumberToString = (timeNumber) => {
+    if (!timeNumber) return "11:00";
+    const hours = Math.floor(timeNumber / 100);
+    const minutes = timeNumber % 100;
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}`;
+  };
 
-      setFormData((prev) => ({
-        ...prev,
-        operatingHours: {
-          ...prev.operatingHours,
-          [day]: newHours,
+  const handleOpeningHoursChange = (dayIndex, field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      openingHours: {
+        ...prev.openingHours,
+        [dayIndex]: {
+          ...prev.openingHours[dayIndex],
+          [field]:
+            field === "isClosed"
+              ? value
+              : field === "open" || field === "close"
+              ? timeStringToNumber(value)
+              : value,
         },
-      }));
-    }
+      },
+    }));
   };
 
   const handleTagToggle = (tag) => {
@@ -295,120 +209,85 @@ export default function RestaurantOnboarding() {
     }));
   };
 
-  const handleFileUpload = (file) => {
-    setBusinessLicenseFile(file);
-    if (file) {
-      // For now, we'll use the filename as the license identifier
-      // In production, you'd want to upload this file to your server/cloud storage
-      setFormData((prev) => ({
-        ...prev,
-        businessLicense: file.name.split(".")[0],
-      }));
-    } else {
-      setFormData((prev) => ({ ...prev, businessLicense: "" }));
+  // Validation functions
+  const validateStep1 = () => {
+    const errors = [];
+
+    if (!formData.name || formData.name.length < 2) {
+      errors.push("Restaurant name must be at least 2 characters long");
     }
+    if (formData.name && formData.name.length > 100) {
+      errors.push("Restaurant name cannot exceed 100 characters");
+    }
+    if (formData.description && formData.description.length > 1000) {
+      errors.push("Description cannot exceed 1000 characters");
+    }
+    if (formData.phone && !/^[\+]?[1-9][\d]{0,15}$/.test(formData.phone)) {
+      errors.push("Please provide a valid phone number");
+    }
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.push("Please provide a valid email address");
+    }
+    if (!formData.address) {
+      errors.push("Address is required");
+    }
+    if (formData.address && formData.address.length > 500) {
+      errors.push("Address cannot exceed 500 characters");
+    }
+    if (!formData.city) {
+      errors.push("City is required");
+    }
+    if (formData.city && formData.city.length > 100) {
+      errors.push("City name cannot exceed 100 characters");
+    }
+    if (!formData.postalCode) {
+      errors.push("Postal code is required");
+    }
+    if (formData.postalCode && formData.postalCode.length > 20) {
+      errors.push("Postal code cannot exceed 20 characters");
+    }
+
+    return errors;
   };
 
-  // Enhanced geocoding with better error handling
-  const geocodeAddress = async (address, city, postalCode, country) => {
-    try {
-      const fullAddress = `${address}, ${city}, ${postalCode}, ${country}`;
-      console.log("Geocoding address:", fullAddress);
+  const validateStep2 = () => {
+    const errors = [];
 
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          fullAddress
-        )}&limit=1&addressdetails=1`,
-        {
-          headers: {
-            "User-Agent": "RestaurantApp/1.0",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Geocoding service error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log("Geocoding response:", data);
-
-      if (data && data.length > 0) {
-        const result = data[0];
-        const latitude = parseFloat(result.lat);
-        const longitude = parseFloat(result.lon);
-
-        // Validate that we got valid numbers
-        if (isNaN(latitude) || isNaN(longitude)) {
-          throw new Error("Invalid coordinates received");
-        }
-
-        return {
-          latitude,
-          longitude,
-          displayName: result.display_name,
-          address: result.address,
-        };
-      }
-
-      return null;
-    } catch (error) {
-      console.error("Geocoding error:", error);
-      throw error;
+    if (formData.deliveryFee < 0 || formData.deliveryFee > 50) {
+      errors.push("Delivery fee must be between 0 and 50");
     }
-  };
-
-  // Parse operating hours for display (HH:MM-HH:MM -> {open: HH:MM, close: HH:MM})
-  const parseOperatingHours = (hoursString) => {
-    if (hoursString === "Closed") {
-      return { open: "", close: "", closed: true };
+    if (formData.minimumOrder < 0) {
+      errors.push("Minimum order cannot be negative");
     }
-    const [open, close] = hoursString.split("-");
-    return { open, close, closed: false };
-  };
-
-  const validateStep = (step) => {
-    switch (step) {
-      case 1:
-        // Basic restaurant information + address validation
-        return (
-          formData.name &&
-          formData.description &&
-          formData.cuisine &&
-          formData.phone &&
-          formData.email &&
-          formData.address.street &&
-          formData.address.city &&
-          formData.address.zipCode &&
-          businessLicenseFile &&
-          addressValidation.isValid &&
-          formData.address.latitude !== null &&
-          formData.address.longitude !== null
-        );
-      case 2:
-        // Business settings
-        return formData.priceRange;
-      case 3:
-        // Operating hours are pre-filled with defaults
-        return true;
-      default:
-        return false;
+    if (
+      formData.averageDeliveryTime < 10 ||
+      formData.averageDeliveryTime > 120
+    ) {
+      errors.push("Average delivery time must be between 10 and 120 minutes");
     }
+    if (formData.tags.length > 10) {
+      errors.push("Cannot have more than 10 tags");
+    }
+
+    return errors;
   };
 
   const nextStep = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep((prev) => Math.min(prev + 1, totalSteps));
-      setError("");
-    } else {
-      if (currentStep === 1 && !addressValidation.isValid) {
-        setError(
-          "Please provide a valid address with proper coordinates before proceeding."
-        );
-      } else {
-        setError("Please fill in all required fields before proceeding.");
-      }
+    let errors = [];
+
+    if (currentStep === 1) {
+      errors = validateStep1();
+    } else if (currentStep === 2) {
+      errors = validateStep2();
     }
+
+    if (errors.length > 0) {
+      setError(errors.join(". "));
+      return;
+    }
+
+    setCurrentStep((prev) => Math.min(prev + 1, totalSteps));
+    setError("");
   };
 
   const prevStep = () => {
@@ -417,15 +296,20 @@ export default function RestaurantOnboarding() {
   };
 
   const handleSubmit = async () => {
-    if (!validateStep(currentStep)) {
-      setError("Please complete all required fields.");
-      return;
-    }
-
     setIsSubmitting(true);
     setError("");
 
     try {
+      // Final validation
+      const step1Errors = validateStep1();
+      const step2Errors = validateStep2();
+      const allErrors = [...step1Errors, ...step2Errors];
+
+      if (allErrors.length > 0) {
+        setError(allErrors.join(". "));
+        return;
+      }
+
       // Check authentication before submitting
       const token = getToken();
       const userDataCookie = Cookies.get("userData");
@@ -440,44 +324,28 @@ export default function RestaurantOnboarding() {
         return;
       }
 
-      // Ensure we have valid coordinates
-      if (
-        !formData.latitude ||
-        !formData.longitude ||
-        isNaN(formData.latitude) ||
-        isNaN(formData.longitude)
-      ) {
-        setError("Invalid address coordinates. Please verify your address.");
-        return;
-      }
-
-      // Prepare restaurant data with proper number conversion
+      // Prepare restaurant data matching backend schema exactly
       const restaurantData = {
         name: formData.name.trim(),
-        description: formData.description.trim(),
-        cuisineType: formData.cuisineType,
-        phone: formData.phone.trim(),
-        email: formData.email.trim(),
+        description: formData.description.trim() || undefined,
+        cuisineType: formData.cuisineType || undefined,
+        phone: formData.phone.trim() || undefined,
+        email: formData.email.trim() || undefined,
         address: formData.address.trim(),
         city: formData.city.trim(),
         postalCode: formData.postalCode.trim(),
         country: formData.country,
-        latitude: Number(formData.latitude), // Ensure it's a number
-        longitude: Number(formData.longitude), // Ensure it's a number
-        minimumOrder: Number(parseFloat(formData.minimumOrder)), // Ensure it's a number
-        averageDeliveryTime: Number(parseInt(formData.averageDeliveryTime)), // Ensure it's a number
+        latitude: formData.latitude || undefined,
+        longitude: formData.longitude || undefined,
+        deliveryFee: Number(formData.deliveryFee),
+        minimumOrder: Number(formData.minimumOrder),
+        averageDeliveryTime: Number(formData.averageDeliveryTime),
         openingHours: formData.openingHours,
-        tags: formData.tags,
-        businessLicense: formData.businessLicense,
+        tags: formData.tags.length > 0 ? formData.tags : undefined,
+        businessLicense: formData.businessLicense.trim() || undefined,
       };
 
       console.log("Submitting restaurant data:", restaurantData);
-      console.log("Coordinates verification:", {
-        latitude: typeof restaurantData.latitude,
-        longitude: typeof restaurantData.longitude,
-        latValue: restaurantData.latitude,
-        lonValue: restaurantData.longitude,
-      });
 
       const response = await restaurantAPI.createRestaurantData(restaurantData);
       console.log("API Response:", response);
@@ -491,23 +359,19 @@ export default function RestaurantOnboarding() {
     } catch (error) {
       console.error("Restaurant onboarding error:", error);
 
-      // Better error handling for different types of errors
       if (error.message && error.message.includes("Unexpected token")) {
         setError("Authentication failed. You may need to log in again.");
         setTimeout(() => router.push("/login"), 2000);
       } else if (error.response) {
-        // API returned an error response
         console.error("API Error Response:", error.response);
         setError(
           error.response.data?.message ||
             `Server error: ${error.response.status}`
         );
       } else if (error.request) {
-        // Network error
         console.error("Network Error:", error.request);
         setError("Network error. Please check your connection and try again.");
       } else {
-        // Other error
         setError(
           error.message ||
             "Failed to complete restaurant setup. Please try again."
@@ -589,7 +453,7 @@ export default function RestaurantOnboarding() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Restaurant Name *
+                    Restaurant Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -599,11 +463,12 @@ export default function RestaurantOnboarding() {
                     placeholder="La Belle Cuisine"
                     required
                   />
+                  <p className="mt-1 text-sm text-gray-500">2-100 characters</p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Restaurant Description *
+                    Restaurant Description
                   </label>
                   <textarea
                     value={formData.description}
@@ -613,13 +478,15 @@ export default function RestaurantOnboarding() {
                     rows={4}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
                     placeholder="A fine dining restaurant specializing in French cuisine..."
-                    required
                   />
+                  <p className="mt-1 text-sm text-gray-500">
+                    Maximum 1000 characters
+                  </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cuisine Type *
+                    Cuisine Type
                   </label>
                   <select
                     value={formData.cuisineType}
@@ -627,7 +494,6 @@ export default function RestaurantOnboarding() {
                       handleInputChange("cuisineType", e.target.value)
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
-                    required
                   >
                     <option value="">Select cuisine type</option>
                     {cuisineTypes.map((cuisine) => (
@@ -641,7 +507,7 @@ export default function RestaurantOnboarding() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Restaurant Phone *
+                      Restaurant Phone
                     </label>
                     <input
                       type="tel"
@@ -650,14 +516,16 @@ export default function RestaurantOnboarding() {
                         handleInputChange("phone", e.target.value)
                       }
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
-                      placeholder="+33 1 23 45 67 89"
-                      required
+                      placeholder="+33123456789"
                     />
+                    <p className="mt-1 text-sm text-gray-500">
+                      International format
+                    </p>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Restaurant Email *
+                      Restaurant Email
                     </label>
                     <input
                       type="email"
@@ -666,15 +534,14 @@ export default function RestaurantOnboarding() {
                         handleInputChange("email", e.target.value)
                       }
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
-                      placeholder="contact@labellecuisine.com"
-                      required
+                      placeholder="contact@restaurant.com"
                     />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Restaurant Address *
+                    Street Address <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -686,12 +553,15 @@ export default function RestaurantOnboarding() {
                     placeholder="123 Rue de la Paix"
                     required
                   />
+                  <p className="mt-1 text-sm text-gray-500">
+                    Maximum 500 characters
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      City *
+                      City <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -707,7 +577,7 @@ export default function RestaurantOnboarding() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Postal Code *
+                      Postal Code <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -716,14 +586,14 @@ export default function RestaurantOnboarding() {
                         handleInputChange("postalCode", e.target.value)
                       }
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
-                      placeholder="75002"
+                      placeholder="75001"
                       required
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Country *
+                      Country
                     </label>
                     <select
                       value={formData.country}
@@ -731,78 +601,34 @@ export default function RestaurantOnboarding() {
                         handleInputChange("country", e.target.value)
                       }
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
-                      required
                     >
                       <option value="France">France</option>
-                      <option value="Belgium">Belgium</option>
-                      <option value="Switzerland">Switzerland</option>
-                      <option value="Luxembourg">Luxembourg</option>
+                      <option value="US">United States</option>
+                      <option value="CA">Canada</option>
+                      <option value="GB">United Kingdom</option>
+                      <option value="DE">Germany</option>
+                      <option value="IT">Italy</option>
+                      <option value="ES">Spain</option>
                     </select>
                   </div>
                 </div>
 
-                {/* Address Validation Status */}
-                {(formData.address || formData.city || formData.postalCode) && (
-                  <div className="border border-gray-200 rounded-xl p-4">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <MapPin size={16} className="text-gray-500" />
-                      <span className="text-sm font-medium text-gray-700">
-                        Address Validation
-                      </span>
-                    </div>
-
-                    {addressValidation.isValidating && (
-                      <div className="flex items-center space-x-2 text-blue-600">
-                        <Loader2 size={16} className="animate-spin" />
-                        <span className="text-sm">Validating address...</span>
-                      </div>
-                    )}
-
-                    {addressValidation.isValid && (
-                      <div className="flex items-center space-x-2 text-green-600">
-                        <CheckCircle size={16} />
-                        <span className="text-sm">
-                          Address verified successfully!
-                        </span>
-                      </div>
-                    )}
-
-                    {addressValidation.error && (
-                      <div className="flex items-center space-x-2 text-red-600">
-                        <AlertCircle size={16} />
-                        <span className="text-sm">
-                          {addressValidation.error}
-                        </span>
-                      </div>
-                    )}
-
-                    {addressValidation.coordinates && (
-                      <div className="mt-2 text-xs text-gray-500">
-                        Coordinates:{" "}
-                        {addressValidation.coordinates.latitude.toFixed(6)},{" "}
-                        {addressValidation.coordinates.longitude.toFixed(6)}
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Business License *
+                    Business License
                   </label>
                   <input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) => handleFileUpload(e.target.files[0])}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100"
-                    required
+                    type="text"
+                    value={formData.businessLicense}
+                    onChange={(e) =>
+                      handleInputChange("businessLicense", e.target.value)
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+                    placeholder="Business License Number"
                   />
-                  {businessLicenseFile && (
-                    <p className="mt-2 text-sm text-green-600 flex items-center space-x-1">
-                      <CheckCircle size={16} />
-                      <span>{businessLicenseFile.name} selected</span>
-                    </p>
-                  )}
+                  <p className="mt-1 text-sm text-gray-500">
+                    Maximum 100 characters
+                  </p>
                 </div>
               </div>
             )}
@@ -819,40 +645,32 @@ export default function RestaurantOnboarding() {
                   </p>
                 </div>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <svg
-                        className="h-5 w-5 text-blue-400"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-blue-800">
-                        Platform Delivery Service
-                      </h3>
-                      <div className="mt-2 text-sm text-blue-700">
-                        <p>
-                          Our platform handles all delivery logistics and fees.
-                          You just need to set your minimum order amount and
-                          preparation time.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Minimum Order Amount (€) *
+                      Delivery Fee (€)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="50"
+                      step="0.01"
+                      value={formData.deliveryFee}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "deliveryFee",
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+                      placeholder="2.50"
+                    />
+                    <p className="mt-1 text-sm text-gray-500">0-50 euros</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Minimum Order (€)
                     </label>
                     <input
                       type="number"
@@ -860,45 +678,47 @@ export default function RestaurantOnboarding() {
                       step="0.01"
                       value={formData.minimumOrder}
                       onChange={(e) =>
-                        handleInputChange("minimumOrder", e.target.value)
+                        handleInputChange(
+                          "minimumOrder",
+                          parseFloat(e.target.value) || 0
+                        )
                       }
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
                       placeholder="15.00"
-                      required
                     />
                     <p className="mt-1 text-sm text-gray-500">
-                      Customers must order at least this amount
+                      Minimum order amount
                     </p>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Preparation Time (minutes) *
+                      Preparation Time (min)
                     </label>
                     <input
                       type="number"
-                      min="1"
+                      min="10"
                       max="120"
                       value={formData.averageDeliveryTime}
                       onChange={(e) =>
-                        handleInputChange("averageDeliveryTime", e.target.value)
+                        handleInputChange(
+                          "averageDeliveryTime",
+                          parseInt(e.target.value) || 30
+                        )
                       }
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
                       placeholder="30"
-                      required
                     />
-                    <p className="mt-1 text-sm text-gray-500">
-                      How long to prepare orders on average
-                    </p>
+                    <p className="mt-1 text-sm text-gray-500">10-120 minutes</p>
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Restaurant Tags
+                    Restaurant Tags (max 10)
                   </label>
                   <p className="text-sm text-gray-500 mb-3">
-                    Select tags that describe your restaurant (optional)
+                    Select tags that describe your restaurant
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {availableTags.map((tag) => (
@@ -906,9 +726,15 @@ export default function RestaurantOnboarding() {
                         key={tag}
                         type="button"
                         onClick={() => handleTagToggle(tag)}
+                        disabled={
+                          !formData.tags.includes(tag) &&
+                          formData.tags.length >= 10
+                        }
                         className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
                           formData.tags.includes(tag)
                             ? "bg-yellow-500 text-white"
+                            : formData.tags.length >= 10
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                             : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                         }`}
                       >
@@ -919,7 +745,9 @@ export default function RestaurantOnboarding() {
                   {formData.tags.length > 0 && (
                     <div className="mt-3 p-3 bg-yellow-50 rounded-lg">
                       <p className="text-sm text-gray-600">
-                        <strong>Selected tags:</strong>{" "}
+                        <strong>
+                          Selected tags ({formData.tags.length}/10):
+                        </strong>{" "}
                         {formData.tags.join(", ")}
                       </p>
                     </div>
@@ -936,85 +764,84 @@ export default function RestaurantOnboarding() {
                     Opening Hours
                   </h2>
                   <p className="text-gray-600">
-                    Set your restaurant's operating hours
+                    Set your restaurant's opening hours
                   </p>
                 </div>
 
                 <div className="space-y-4">
-                  {daysOfWeek.map((day) => (
-                    <div
-                      key={day.key}
-                      className="flex items-center space-x-4 p-4 border border-gray-200 rounded-xl"
-                    >
-                      <div className="w-20">
-                        <span className="font-medium text-gray-900">
-                          {day.label}
-                        </span>
+                  {daysOfWeek.map((day) => {
+                    const dayData = formData.openingHours[day.index];
+                    return (
+                      <div
+                        key={day.index}
+                        className="flex items-center space-x-4 p-4 border border-gray-200 rounded-xl"
+                      >
+                        <div className="w-20">
+                          <span className="font-medium text-gray-900">
+                            {day.label}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={dayData.isClosed}
+                            onChange={(e) =>
+                              handleOpeningHoursChange(
+                                day.index,
+                                "isClosed",
+                                e.target.checked
+                              )
+                            }
+                            className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded"
+                          />
+                          <label className="text-sm text-gray-700">
+                            Closed
+                          </label>
+                        </div>
+
+                        {!dayData.isClosed && (
+                          <>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">
+                                Open
+                              </label>
+                              <input
+                                type="time"
+                                value={timeNumberToString(dayData.open)}
+                                onChange={(e) =>
+                                  handleOpeningHoursChange(
+                                    day.index,
+                                    "open",
+                                    e.target.value
+                                  )
+                                }
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">
+                                Close
+                              </label>
+                              <input
+                                type="time"
+                                value={timeNumberToString(dayData.close)}
+                                onChange={(e) =>
+                                  handleOpeningHoursChange(
+                                    day.index,
+                                    "close",
+                                    e.target.value
+                                  )
+                                }
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+                              />
+                            </div>
+                          </>
+                        )}
                       </div>
-
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={
-                            formData.openingHours[day.key]?.closed || false
-                          }
-                          onChange={(e) =>
-                            handleOpeningHoursChange(
-                              day.key,
-                              "closed",
-                              e.target.checked
-                            )
-                          }
-                          className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded"
-                        />
-                        <label className="text-sm text-gray-700">Closed</label>
-                      </div>
-
-                      {!formData.openingHours[day.key]?.closed && (
-                        <>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">
-                              Open
-                            </label>
-                            <input
-                              type="time"
-                              value={formatTime(
-                                formData.openingHours[day.key]?.open || 1100
-                              )}
-                              onChange={(e) =>
-                                handleOpeningHoursChange(
-                                  day.key,
-                                  "open",
-                                  parseTime(e.target.value)
-                                )
-                              }
-                              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">
-                              Close
-                            </label>
-                            <input
-                              type="time"
-                              value={formatTime(
-                                formData.openingHours[day.key]?.close || 2200
-                              )}
-                              onChange={(e) =>
-                                handleOpeningHoursChange(
-                                  day.key,
-                                  "close",
-                                  parseTime(e.target.value)
-                                )
-                              }
-                              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
-                            />
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
@@ -1038,8 +865,8 @@ export default function RestaurantOnboarding() {
                       </h3>
                       <div className="mt-2 text-sm text-yellow-700">
                         <p>
-                          Opening hours are stored in 24-hour format. You can
-                          modify these later in your restaurant settings.
+                          Opening hours use 24-hour format. You can modify these
+                          later in your restaurant settings.
                         </p>
                       </div>
                     </div>
@@ -1071,7 +898,7 @@ export default function RestaurantOnboarding() {
               ) : (
                 <button
                   onClick={handleSubmit}
-                  className="px-6 py-3 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600 transition-colors"
+                  className="px-6 py-3 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (

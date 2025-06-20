@@ -5,7 +5,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL_USER;
 const API_BASE_URL_RESTAURANT = process.env.NEXT_PUBLIC_API_URL_RESTAURANT;
 const API_BASE_URL_DRIVER = process.env.NEXT_PUBLIC_API_URL_DRIVER;
 
-
 // Cookie configuration
 const COOKIE_OPTIONS = {
   expires: 7, // 7 days
@@ -17,6 +16,26 @@ const COOKIE_OPTIONS = {
 // Get token from cookies
 const getToken = () => {
   return Cookies.get("authToken");
+};
+
+// Get user data from cookies
+const getUserData = () => {
+  const userData = Cookies.get("userData");
+  if (userData) {
+    try {
+      return JSON.parse(userData);
+    } catch (error) {
+      console.error("Error parsing user data from cookies:", error);
+      return null;
+    }
+  }
+  return null;
+};
+
+// Get user UUID from cookies
+const getUserId = () => {
+  const userData = getUserData();
+  return userData?.uuid  || null;
 };
 
 // Set auth data in cookies
@@ -32,8 +51,9 @@ const clearAuthData = () => {
 };
 
 // Generic API call function
-const apiCall = async (endpoint, options = {}, baseUrl = API_BASE_URL) => {
+const apiCall = async (endpoint, options = {}, baseUrl) => {
   const token = getToken();
+  const userId = getUserId();
 
   const config = {
     headers: {
@@ -43,12 +63,28 @@ const apiCall = async (endpoint, options = {}, baseUrl = API_BASE_URL) => {
     ...options,
   };
 
+  // Add authorization header if token exists
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
+  // Add user ID header if userId exists
+  if (userId) {
+    config.headers["x-user-id"] = userId;
+  }
+
   try {
-    const response = await fetch(`${baseUrl}${endpoint}`, config);
+    const response = await fetch(
+      `${baseUrl}${endpoint}`,
+      config
+    );
+
+    console.log("Response from API:", {
+      url: `${baseUrl}${endpoint}`,
+      status: response.status,
+      headers: response.headers,
+      options: config,
+    }, response);
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -81,10 +117,21 @@ const apiCall = async (endpoint, options = {}, baseUrl = API_BASE_URL) => {
 // Server-side API call function (for middleware or server components)
 export const serverApiCall = async (endpoint, options = {}, request = null) => {
   let token = null;
+  let userId = null;
 
-  // Extract token from request cookies if available (for middleware)
+  // Extract token and user data from request cookies if available (for middleware)
   if (request && request.cookies) {
     token = request.cookies.get("authToken")?.value;
+    const userDataCookie = request.cookies.get("userData")?.value;
+
+    if (userDataCookie) {
+      try {
+        const userData = JSON.parse(userDataCookie);
+        userId = userData?.uuid || userData?.id || null;
+      } catch (error) {
+        console.error("Error parsing user data from server cookies:", error);
+      }
+    }
   }
 
   const config = {
@@ -98,6 +145,11 @@ export const serverApiCall = async (endpoint, options = {}, request = null) => {
   // Add authorization header if token exists
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  // Add user ID header if userId exists
+  if (userId) {
+    config.headers["x-user-id"] = userId;
   }
 
   try {
@@ -126,10 +178,14 @@ export const serverApiCall = async (endpoint, options = {}, request = null) => {
 export const authAPI = {
   login: async (credentials) => {
     try {
-      const response = await apiCall("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify(credentials),
-      }, API_BASE_URL);
+      const response = await apiCall(
+        "/api/auth/login",
+        {
+          method: "POST",
+          body: JSON.stringify(credentials),
+        },
+        API_BASE_URL
+      );
 
       // If login is successful, store auth data in cookies
       if (response.token && response.user) {
@@ -145,10 +201,14 @@ export const authAPI = {
 
   register: async (userData) => {
     try {
-      const response = await apiCall("/api/auth/register", {
-        method: "POST",
-        body: JSON.stringify(userData),
-      }, API_BASE_URL);
+      const response = await apiCall(
+        "/api/auth/register",
+        {
+          method: "POST",
+          body: JSON.stringify(userData),
+        },
+        API_BASE_URL
+      );
 
       // If registration is successful and includes login, store auth data
       if (response.token && response.user) {
@@ -165,9 +225,13 @@ export const authAPI = {
   logout: async () => {
     try {
       // Call logout API
-      await apiCall("/api/auth/logout", {
-        method: "POST",
-      }, API_BASE_URL);
+      await apiCall(
+        "/api/auth/logout",
+        {
+          method: "POST",
+        },
+        API_BASE_URL
+      );
     } catch (error) {
       console.error("Logout API error:", error);
       // Continue with local logout even if API fails
@@ -179,15 +243,19 @@ export const authAPI = {
 
   refreshToken: async () => {
     try {
-      const response = await apiCall("/api/auth/refresh", {
-        method: "POST",
-      }, API_BASE_URL);
+      const response = await apiCall(
+        "/api/auth/refresh",
+        {
+          method: "POST",
+        },
+        API_BASE_URL
+      );
 
       // Update token in cookies if refresh is successful
       if (response.token) {
-        const userData = Cookies.get("userData");
+        const userData = getUserData();
         if (userData) {
-          setAuthData(response.token, JSON.parse(userData));
+          setAuthData(response.token, userData);
         }
       }
 
@@ -204,10 +272,14 @@ export const authAPI = {
 
   updateProfile: async (userData) => {
     try {
-      const response = await apiCall("/api/auth/profile", {
-        method: "PUT",
-        body: JSON.stringify(userData),
-      }, API_BASE_URL);
+      const response = await apiCall(
+        "/api/auth/profile",
+        {
+          method: "PUT",
+          body: JSON.stringify(userData),
+        },
+        API_BASE_URL
+      );
 
       // Update user data in cookies if update is successful
       if (response.user) {
@@ -225,13 +297,17 @@ export const authAPI = {
   },
 
   verifyToken: () =>
-    apiCall("/api/auth/verify", {
-      method: "POST",
-    }, API_BASE_URL),
+    apiCall(
+      "/api/auth/verify",
+      {
+        method: "POST",
+      },
+      API_BASE_URL
+    ),
 };
 
 // Restaurant API calls
-export const restaurantAPI = {
+export const  restaurantAPI = {
   createRestaurantData: (profileData) =>
     apiCall(
       "/api/restaurants",
@@ -264,7 +340,7 @@ export const restaurantAPI = {
   getMenu: () => apiCall("/api/restaurant/menu", {}, API_BASE_URL_RESTAURANT),
   addMenuItem: (item) =>
     apiCall(
-      "/api/restaurant/menu",
+      "/api/items",
       {
         method: "POST",
         body: JSON.stringify(item),
@@ -272,10 +348,11 @@ export const restaurantAPI = {
       API_BASE_URL_RESTAURANT
     ),
   getMenuItem: (itemId) =>
-    apiCall(`/api/restaurant/menu/${itemId}`, {}, API_BASE_URL_RESTAURANT),
+    apiCall('/api/items/owner/restaurant', {
+      method: "GET"    }, API_BASE_URL_RESTAURANT),
   updateMenuItem: (itemId, item) =>
     apiCall(
-      `/api/restaurant/menu/${itemId}`,
+      `/api/items/${itemId}`,
       {
         method: "PUT",
         body: JSON.stringify(item),
@@ -284,7 +361,7 @@ export const restaurantAPI = {
     ),
   deleteMenuItem: (itemId) =>
     apiCall(
-      `/api/restaurant/menu/${itemId}`,
+      `/api/items/${itemId}`,
       {
         method: "DELETE",
       },
@@ -292,124 +369,88 @@ export const restaurantAPI = {
     ),
   getDashboardStats: () =>
     apiCall("/api/restaurant/dashboard", {}, API_BASE_URL_RESTAURANT),
-  completeOnboarding: async (onboardingData) => {
-    try {
-      // Create FormData for file uploads
-      const formData = new FormData();
-
-      // Add all text fields
-      Object.keys(onboardingData).forEach((key) => {
-        if (key === "profilePicture" || key === "businessLicenseFile") {
-          return;
-        } else if (
-          typeof onboardingData[key] === "object" &&
-          onboardingData[key] !== null
-        ) {
-          formData.append(key, JSON.stringify(onboardingData[key]));
-        } else if (
-          onboardingData[key] !== null &&
-          onboardingData[key] !== undefined
-        ) {
-          formData.append(key, onboardingData[key]);
-        }
-      });
-
-      if (onboardingData.profilePicture) {
-        formData.append("profilePicture", onboardingData.profilePicture);
-      }
-      if (onboardingData.businessLicenseFile) {
-        formData.append(
-          "businessLicenseFile",
-          onboardingData.businessLicenseFile
-        );
-      }
-
-      const response = await fetch(
-        `${API_BASE_URL_RESTAURANT}/restaurants`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-          },
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        let errorMessage = `HTTP Error ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-          errorMessage = response.statusText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-
-      if (data.user) {
-        const token = getToken();
-        if (token) {
-          setAuthData(token, data.user);
-        }
-      }
-
-      return data;
-    } catch (error) {
-      console.error("Restaurant onboarding error:", error);
-      throw error;
-    }
-  },
   getOwnerRestaurant: async () => {
-    apiCall("/api/restaurants/owner/me", {}, API_BASE_URL_RESTAURANT)
+    return apiCall("/api/restaurants/owner/me", {
+      method : "GET"
+    }, API_BASE_URL_RESTAURANT);
+  },
+ getOwnerRestaurant: async () => {
+    return apiCall("/api/restaurants/owner/me", {
+      method : "GET"
+    }, API_BASE_URL_RESTAURANT);
   },
 };
 
 // Driver API calls
 export const driverAPI = {
-  getAvailableDeliveries: () => apiCall("/driver/deliveries/available"),
+  getAvailableDeliveries: () =>
+    apiCall("/api/driver/deliveries/available", {}, API_BASE_URL_DRIVER),
   acceptDelivery: (deliveryId) =>
-    apiCall(`/driver/deliveries/${deliveryId}/accept`, {
-      method: "POST",
-    }),
+    apiCall(
+      `/api/driver/deliveries/${deliveryId}/accept`,
+      {
+        method: "POST",
+      },
+      API_BASE_URL_DRIVER
+    ),
   updateDeliveryStatus: (deliveryId, status) =>
-    apiCall(`/driver/deliveries/${deliveryId}`, {
-      method: "PUT",
-      body: JSON.stringify({ status }),
-    }),
-  getEarnings: () => apiCall("/driver/earnings"),
+    apiCall(
+      `/api/driver/deliveries/${deliveryId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ status }),
+      },
+      API_BASE_URL_DRIVER
+    ),
+  getEarnings: () => apiCall("/api/driver/earnings", {}, API_BASE_URL_DRIVER),
   updateLocation: (latitude, longitude) =>
-    apiCall("/driver/location", {
-      method: "PUT",
-      body: JSON.stringify({ latitude, longitude }),
-    }),
+    apiCall(
+      "/api/driver/location",
+      {
+        method: "PUT",
+        body: JSON.stringify({ latitude, longitude }),
+      },
+      API_BASE_URL_DRIVER
+    ),
   setAvailability: (isAvailable) =>
-    apiCall("/driver/availability", {
-      method: "PUT",
-      body: JSON.stringify({ isAvailable }),
-    }),
+    apiCall(
+      "/api/driver/availability",
+      {
+        method: "PUT",
+        body: JSON.stringify({ isAvailable }),
+      },
+      API_BASE_URL_DRIVER
+    ),
 };
 
 // Customer API calls
 export const customerAPI = {
-  getRestaurants: () => apiCall("/restaurants"),
+  getRestaurants: () => apiCall("/api/restaurants", {}, API_BASE_URL),
   getRestaurantMenu: (restaurantId) =>
-    apiCall(`/restaurants/${restaurantId}/menu`),
+    apiCall(`/api/restaurants/${restaurantId}/menu`, {}, API_BASE_URL),
   placeOrder: (orderData) =>
-    apiCall("/orders", {
-      method: "POST",
-      body: JSON.stringify(orderData),
-    }),
-  getOrderHistory: () => apiCall("/orders/history"),
-  getOrderStatus: (orderId) => apiCall(`/orders/${orderId}`),
+    apiCall(
+      "/api/orders",
+      {
+        method: "POST",
+        body: JSON.stringify(orderData),
+      },
+      API_BASE_URL
+    ),
+  getOrderHistory: () => apiCall("/api/orders/history", {}, API_BASE_URL),
+  getOrderStatus: (orderId) =>
+    apiCall(`/api/orders/${orderId}`, {}, API_BASE_URL),
   cancelOrder: (orderId) =>
-    apiCall(`/orders/${orderId}/cancel`, {
-      method: "PUT",
-    }),
+    apiCall(
+      `/api/orders/${orderId}/cancel`,
+      {
+        method: "PUT",
+      },
+      API_BASE_URL
+    ),
 };
 
 // Export helper functions for external use
-export { getToken, setAuthData, clearAuthData };
+export { getToken, setAuthData, clearAuthData, getUserData, getUserId };
 
 export default apiCall;
