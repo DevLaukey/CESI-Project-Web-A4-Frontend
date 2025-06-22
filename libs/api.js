@@ -426,6 +426,12 @@ export const driverAPI = {
 // Customer API calls
 export const customerAPI = {
   getRestaurants: () => apiCall("/api/restaurants", {}, API_BASE_URL),
+  searchRestaurants: (queryParams) => {
+    const endpoint = queryParams
+      ? `/api/restaurants/search`
+      : "/api/restaurants/search";
+    return apiCall(endpoint, {}, API_BASE_URL);
+  },
   getRestaurantMenu: (restaurantId) =>
     apiCall(`/api/restaurants/${restaurantId}/menu`, {}, API_BASE_URL),
   placeOrder: (orderData) =>

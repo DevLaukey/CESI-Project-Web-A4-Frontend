@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { createPortal } from "react-dom";
 import { Loader } from "@googlemaps/js-api-loader";
 import {
   MapPin,
@@ -43,13 +42,7 @@ export default function AddressInput({
   const searchTimeoutRef = useRef(null);
   const currentRequestId = useRef(0);
   const dropdownRef = useRef(null);
-
-  // State for dropdown positioning
-  const [dropdownPosition, setDropdownPosition] = useState({
-    top: 0,
-    left: 0,
-    width: 0,
-  });
+  const containerRef = useRef(null);
 
   // Initialize Google Maps services
   useEffect(() => {
@@ -256,6 +249,7 @@ export default function AddressInput({
     ]
   );
 
+  // Get place details using new Places API
   const getPlaceDetails = useCallback(
     async (placeId) => {
       if (!window.google?.maps?.places?.Place) {
@@ -263,19 +257,22 @@ export default function AddressInput({
       }
 
       try {
+        // Create place without sessionToken first
         const place = new window.google.maps.places.Place({
           id: placeId,
-          ...(sessionToken && { sessionToken }),
         });
 
-        // Fetch place details
-        await place.fetchFields([
-          "id",
-          "displayName",
-          "formattedAddress",
-          "location",
-          "addressComponents",
-        ]);
+        // Fetch place details with proper options object
+        await place.fetchFields({
+          fields: [
+            "id",
+            "displayName",
+            "formattedAddress",
+            "location",
+            "addressComponents",
+          ],
+          ...(sessionToken && { sessionToken }),
+        });
 
         return {
           place_id: place.id,
@@ -290,7 +287,38 @@ export default function AddressInput({
         };
       } catch (error) {
         console.error("Error fetching place details:", error);
-        throw new Error("Unable to get place details");
+
+        // Fallback: try without sessionToken
+        try {
+          const place = new window.google.maps.places.Place({
+            id: placeId,
+          });
+
+          await place.fetchFields({
+            fields: [
+              "id",
+              "displayName",
+              "formattedAddress",
+              "location",
+              "addressComponents",
+            ],
+          });
+
+          return {
+            place_id: place.id,
+            formatted_address: place.formattedAddress,
+            geometry: {
+              location: {
+                lat: place.location.lat(),
+                lng: place.location.lng(),
+              },
+            },
+            address_components: place.addressComponents || [],
+          };
+        } catch (fallbackError) {
+          console.error("Fallback place details fetch failed:", fallbackError);
+          throw new Error("Unable to get place details");
+        }
       }
     },
     [sessionToken]
@@ -450,54 +478,32 @@ export default function AddressInput({
     }
   };
 
-  // Update dropdown position when predictions show
+  // Close predictions when clicking outside
   useEffect(() => {
-    if (showPredictions && inputRef.current) {
-      const rect = inputRef.current.getBoundingClientRect();
-      const inputContainer = inputRef.current.closest(
-        'div[class*="relative flex items-center"]'
-      );
-      const containerRect = inputContainer?.getBoundingClientRect() || rect;
-
-      setDropdownPosition({
-        top: containerRect.bottom + window.scrollY + 4, 
-        left: containerRect.left + window.scrollX,
-        width: containerRect.width,
-      });
-    }
-  }, [showPredictions]);
-
-  // Handle window scroll and resize
-  useEffect(() => {
-    const updatePosition = () => {
-      if (showPredictions && inputRef.current) {
-        const rect = inputRef.current.getBoundingClientRect();
-        const inputContainer = inputRef.current.closest(
-          'div[class*="relative flex items-center"]'
-        );
-        const containerRect = inputContainer?.getBoundingClientRect() || rect;
-
-        setDropdownPosition({
-          top: containerRect.bottom + window.scrollY + 4,
-          left: containerRect.left + window.scrollX,
-          width: containerRect.width,
-        });
+    const handleClickOutside = (event) => {
+      // Check if click is outside both input container and dropdown
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target) &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target)
+      ) {
+        setShowPredictions(false);
       }
     };
 
-    if (showPredictions) {
-      window.addEventListener("scroll", updatePosition, true);
-      window.addEventListener("resize", updatePosition);
-
-      return () => {
-        window.removeEventListener("scroll", updatePosition, true);
-        window.removeEventListener("resize", updatePosition);
-      };
-    }
-  }, [showPredictions]);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      // Clear timeout on unmount
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
-    <div className={`relative ${className}`}>
+    <div ref={containerRef} className={`relative ${className}`}>
       <div className="relative">
         {/* Input Field */}
         <div
@@ -572,36 +578,40 @@ export default function AddressInput({
             <span>Loading address validation...</span>
           </p>
         )}
-
-        {/* Predictions Dropdown */}
-        {showPredictions && predictions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl mt-1 shadow-lg z-[9999] max-h-64 overflow-y-auto">
-            {predictions.map((prediction, index) => (
-              <button
-                key={prediction.place_id || index}
-                type="button"
-                onClick={() => handlePredictionSelect(prediction)}
-                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 first:rounded-t-xl last:rounded-b-xl"
-              >
-                <div className="flex items-start space-x-3">
-                  <MapPin
-                    className="text-gray-400 mt-0.5 flex-shrink-0"
-                    size={16}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-gray-900 text-sm font-medium truncate">
-                      {prediction.structured_formatting.main_text}
-                    </p>
-                    <p className="text-gray-500 text-xs truncate">
-                      {prediction.structured_formatting.secondary_text}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
+
+      {/* Predictions Dropdown - Fixed positioning */}
+      {showPredictions && predictions.length > 0 && (
+        <div
+          ref={dropdownRef}
+          className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl mt-1 shadow-lg max-h-64 overflow-y-auto"
+          style={{ zIndex: 1000 }}
+        >
+          {predictions.map((prediction, index) => (
+            <button
+              key={prediction.place_id || index}
+              type="button"
+              onClick={() => handlePredictionSelect(prediction)}
+              className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 first:rounded-t-xl last:rounded-b-xl"
+            >
+              <div className="flex items-start space-x-3">
+                <MapPin
+                  className="text-gray-400 mt-0.5 flex-shrink-0"
+                  size={16}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-gray-900 text-sm font-medium truncate">
+                    {prediction.structured_formatting.main_text}
+                  </p>
+                  <p className="text-gray-500 text-xs truncate">
+                    {prediction.structured_formatting.secondary_text}
+                  </p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Selected Address Details */}
       {selectedAddress && validationStatus === "valid" && (

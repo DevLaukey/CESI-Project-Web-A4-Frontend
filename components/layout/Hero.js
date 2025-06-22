@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/components/AuthContext";
-import AddressInput from "@/components/maps/AddressInput"; 
+import AddressInput from "@/components/maps/AddressInput";
 
 // Dynamically import Lottie to avoid SSR issues
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
@@ -16,7 +16,6 @@ export default function Hero() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [addressError, setAddressError] = useState("");
   const [hasStoredLocation, setHasStoredLocation] = useState(false);
-  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 
   const router = useRouter();
   const { user } = useAuth(); // Get current user info
@@ -100,7 +99,10 @@ export default function Hero() {
               animations[slide.id] = null;
             }
           } catch (error) {
-            console.error(`Error loading animation for slide ${slide.id}:`, error);
+            console.error(
+              `Error loading animation for slide ${slide.id}:`,
+              error
+            );
             animations[slide.id] = null;
           }
         }
@@ -127,7 +129,7 @@ export default function Hero() {
   const handleAddressChange = (addressData) => {
     setSelectedAddress(addressData);
     setAddressError("");
-    
+
     if (addressData) {
       // Store the validated address
       const locationData = {
@@ -145,170 +147,22 @@ export default function Hero() {
     }
   };
 
-  // Handle current location detection with Google Maps reverse geocoding
-  const handleLocationRequest = () => {
-    // Check if user is allowed to access location (customers only)
-    if (user && user.userType !== "customer") {
-      setAddressError("Location services are only available for customers.");
-      return;
-    }
-
-    setIsDetectingLocation(true);
-    setAddressError("");
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-
-          try {
-            // Use Google Maps Geocoding API to get address from coordinates
-            if (window.google && window.google.maps) {
-              const geocoder = new window.google.maps.Geocoder();
-
-              geocoder.geocode(
-                { location: { lat: latitude, lng: longitude } },
-                (results, status) => {
-                  if (status === "OK" && results[0]) {
-                    const result = results[0];
-
-                    // Parse address components - UPDATED for new API compatibility
-                    const addressComponents = {};
-                    result.address_components.forEach((component) => {
-                      const types = component.types;
-                      if (types.includes("street_number")) {
-                        addressComponents.streetNumber = component.long_name;
-                      }
-                      if (types.includes("route")) {
-                        addressComponents.street = component.long_name;
-                      }
-                      if (types.includes("locality")) {
-                        addressComponents.city = component.long_name;
-                      }
-                      if (types.includes("postal_code")) {
-                        addressComponents.postalCode = component.long_name;
-                      }
-                      if (types.includes("country")) {
-                        addressComponents.country = component.long_name;
-                        addressComponents.countryCode = component.short_name;
-                      }
-                      if (types.includes("administrative_area_level_1")) {
-                        addressComponents.state = component.long_name;
-                      }
-                    });
-
-                    const locationData = {
-                      placeId: result.place_id,
-                      formattedAddress: result.formatted_address,
-                      coordinates: { lat: latitude, lng: longitude },
-                      components: addressComponents, // Updated structure
-                      isInDeliveryArea: true,
-                      timestamp: new Date().toISOString(),
-                      isDetected: true,
-                    };
-
-                    // Store the location
-                    const storageKey = user
-                      ? `userLocation_${user.id}`
-                      : "userLocation";
-                    localStorage.setItem(
-                      storageKey,
-                      JSON.stringify(locationData)
-                    );
-
-                    setSelectedAddress(locationData);
-                    setHasStoredLocation(true);
-
-                    // Auto-redirect after 1 second
-                    setTimeout(() => {
-                      router.push("/restaurants");
-                    }, 1000);
-                  } else {
-                    setAddressError(
-                      "Unable to determine address from your location."
-                    );
-                  }
-                  setIsDetectingLocation(false);
-                }
-              );
-            } else {
-              // Fallback if Google Maps is not loaded - UPDATED structure
-              const locationData = {
-                formattedAddress: `${latitude.toFixed(4)}, ${longitude.toFixed(
-                  4
-                )} (Detected Location)`,
-                coordinates: { lat: latitude, lng: longitude },
-                components: {}, // Updated structure
-                isInDeliveryArea: true,
-                timestamp: new Date().toISOString(),
-                isDetected: true,
-              };
-
-              const storageKey = user
-                ? `userLocation_${user.id}`
-                : "userLocation";
-              localStorage.setItem(storageKey, JSON.stringify(locationData));
-
-              setSelectedAddress(locationData);
-              setHasStoredLocation(true);
-              setIsDetectingLocation(false);
-
-              setTimeout(() => {
-                router.push("/restaurants");
-              }, 1000);
-            }
-          } catch (error) {
-            console.error("Error processing location:", error);
-            setAddressError("Failed to process location. Please try again.");
-            setIsDetectingLocation(false);
-          }
-        },
-        (error) => {
-          // Error handling remains the same...
-          console.error("Error getting location:", error);
-          let errorMessage = "Unable to get location";
-
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage =
-                "Location access denied. Please enter address manually.";
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMessage =
-                "Location information unavailable. Please enter address manually.";
-              break;
-            case error.TIMEOUT:
-              errorMessage = "Location request timed out. Please try again.";
-              break;
-          }
-
-          setAddressError(errorMessage);
-          setIsDetectingLocation(false);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 300000,
-        }
-      );
-    } else {
-      setAddressError("Geolocation is not supported by this browser.");
-      setIsDetectingLocation(false);
-    }
-  };
-  
   // Handle address submission
   const handleAddressSubmit = async () => {
     if (isSubmitting || !selectedAddress) return;
 
     // Check if user is customer for delivery
     if (user && user.userType !== "customer") {
-      setAddressError("Restaurant delivery is only available for customers. Please log in as a customer.");
+      setAddressError(
+        "Restaurant delivery is only available for customers. Please log in as a customer."
+      );
       return;
     }
 
     if (!selectedAddress.isInDeliveryArea) {
-      setAddressError("This address is outside our delivery area. Please try a different address.");
+      setAddressError(
+        "This address is outside our delivery area. Please try a different address."
+      );
       return;
     }
 
@@ -336,11 +190,15 @@ export default function Hero() {
         setAddressError("Restaurant browsing is only available for customers.");
         return;
       }
-      router.push("/restaurants");
+      router.push("/browse-restaurants");
     } else if (!selectedAddress?.isInDeliveryArea) {
-      setAddressError("Please select an address within our delivery area first.");
+      setAddressError(
+        "Please select an address within our delivery area first."
+      );
     } else {
-      setAddressError("Please enter your address first to see available restaurants.");
+      setAddressError(
+        "Please enter your address first to see available restaurants."
+      );
     }
   };
 
@@ -348,7 +206,7 @@ export default function Hero() {
     setSelectedAddress(null);
     setHasStoredLocation(false);
     setAddressError("");
-    
+
     // Clear stored location
     if (user) {
       localStorage.removeItem(`userLocation_${user.id}`);
@@ -421,9 +279,13 @@ export default function Hero() {
                   <div className="space-y-4">
                     <div className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl border border-white/40">
                       <div className="flex items-center gap-3 mb-4">
-                        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-lg ${
-                          selectedAddress.isInDeliveryArea ? "bg-green-500" : "bg-red-500"
-                        }`}>
+                        <div
+                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-lg ${
+                            selectedAddress.isInDeliveryArea
+                              ? "bg-green-500"
+                              : "bg-red-500"
+                          }`}
+                        >
                           <svg
                             className="w-4 h-4 sm:w-5 sm:h-5 text-white"
                             fill="none"
@@ -447,11 +309,15 @@ export default function Hero() {
                             )}
                           </svg>
                         </div>
-                        <span className={`font-semibold text-sm sm:text-base ${
-                          selectedAddress.isInDeliveryArea ? "text-green-700" : "text-red-700"
-                        }`}>
-                          {selectedAddress.isInDeliveryArea 
-                            ? "Delivery location set!" 
+                        <span
+                          className={`font-semibold text-sm sm:text-base ${
+                            selectedAddress.isInDeliveryArea
+                              ? "text-green-700"
+                              : "text-red-700"
+                          }`}
+                        >
+                          {selectedAddress.isInDeliveryArea
+                            ? "Delivery location set!"
                             : "Address outside delivery area"}
                         </span>
                       </div>
@@ -485,8 +351,9 @@ export default function Hero() {
                       {user && user.userType !== "customer" && (
                         <div className="mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
                           <p className="text-yellow-800 text-sm">
-                            <strong>Note:</strong> You're logged in as {user.userType}. 
-                            Restaurant delivery is only available for customers.
+                            <strong>Note:</strong> You're logged in as{" "}
+                            {user.userType}. Restaurant delivery is only
+                            available for customers.
                           </p>
                         </div>
                       )}
@@ -494,9 +361,13 @@ export default function Hero() {
                       <div className="flex flex-col sm:flex-row gap-3">
                         <button
                           onClick={handleBrowseRestaurants}
-                          disabled={!selectedAddress.isInDeliveryArea || (user && user.userType !== "customer")}
+                          disabled={
+                            !selectedAddress.isInDeliveryArea ||
+                            (user && user.userType !== "customer")
+                          }
                           className={`flex-1 font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-xl sm:rounded-2xl transition-all duration-300 text-sm sm:text-base ${
-                            selectedAddress.isInDeliveryArea && (!user || user.userType === "customer")
+                            selectedAddress.isInDeliveryArea &&
+                            (!user || user.userType === "customer")
                               ? "bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-gray-900 hover:scale-105 shadow-lg"
                               : "bg-gray-300 text-gray-500 cursor-not-allowed"
                           }`}
@@ -516,37 +387,56 @@ export default function Hero() {
                   /* Address Input State */
                   <div className="space-y-4">
                     {/* Google Maps Address Input */}
-                    <div className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl shadow-2xl border border-white/40 overflow-hidden p-4">
+                    <div className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl shadow-2xl border border-white/40  p-4">
                       <AddressInput
                         onAddressChange={handleAddressChange}
                         initialValue={selectedAddress?.formattedAddress || ""}
                         placeholder="Enter your delivery address..."
-                        countryRestriction="fr" // Adjust based on your service area
+                        countryRestriction="fr" // Restrict to France
                         required
                         className="w-full"
                       />
-                      
-                      {selectedAddress && (
-                        <button
-                          onClick={handleAddressSubmit}
-                          disabled={!selectedAddress.isInDeliveryArea || isSubmitting}
-                          className={`w-full mt-4 py-3 sm:py-4 rounded-xl font-bold transition-all duration-300 text-sm sm:text-base ${
-                            selectedAddress.isInDeliveryArea && !isSubmitting
-                              ? "bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-gray-900 hover:scale-105 shadow-lg"
-                              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          }`}
-                        >
-                          {isSubmitting ? (
-                            <div className="flex items-center justify-center gap-2">
-                              <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
-                              <span>Finding Restaurants...</span>
-                            </div>
-                          ) : (
-                            "Find Restaurants"
-                          )}
-                        </button>
-                      )}
                     </div>
+
+                    {/* Submit Button - Only show when address is selected and valid */}
+                    {selectedAddress && selectedAddress.isInDeliveryArea && (
+                      <button
+                        onClick={handleAddressSubmit}
+                        disabled={
+                          isSubmitting || (user && user.userType !== "customer")
+                        }
+                        className={`w-full py-3 sm:py-4 px-4 sm:px-6 rounded-xl sm:rounded-2xl font-bold transition-all duration-300 text-sm sm:text-base shadow-lg ${
+                          !isSubmitting &&
+                          (!user || user.userType === "customer")
+                            ? "bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-gray-900 hover:scale-105 transform"
+                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        }`}
+                      >
+                        {isSubmitting ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+                            <span>Finding Restaurants...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center gap-2">
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                              />
+                            </svg>
+                            <span>Find Restaurants</span>
+                          </div>
+                        )}
+                      </button>
+                    )}
 
                     {/* Error Message */}
                     {addressError && (
@@ -572,21 +462,12 @@ export default function Hero() {
                       </div>
                     )}
 
-                    {/* Current Location Button */}
-                    <button
-                      onClick={handleLocationRequest}
-                      disabled={isDetectingLocation || (user && user.userType !== "customer")}
-                      className="w-full bg-white/25 hover:bg-white/35 backdrop-blur-sm text-white border-2 border-white/40 hover:border-white/60 font-medium py-3 sm:py-4 px-4 rounded-xl sm:rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg text-sm sm:text-base"
-                    >
-                      {isDetectingLocation ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          <span>Detecting location...</span>
-                        </>
-                      ) : (
-                        <>
+                    {/* User type warning for non-customers */}
+                    {user && user.userType !== "customer" && (
+                      <div className="bg-yellow-100/95 backdrop-blur-sm border border-yellow-300 text-yellow-800 px-4 py-3 rounded-xl shadow-lg">
+                        <div className="flex items-start gap-2">
                           <svg
-                            className="w-5 h-5"
+                            className="w-5 h-5 flex-shrink-0 mt-0.5"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -595,13 +476,17 @@ export default function Hero() {
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth={2}
-                              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                             />
                           </svg>
-                          <span>Use current location</span>
-                        </>
-                      )}
-                    </button>
+                          <div className="text-sm leading-relaxed">
+                            <strong>Note:</strong> You're logged in as{" "}
+                            {user.userType}. Restaurant delivery is only
+                            available for customers.
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
