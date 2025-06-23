@@ -4,6 +4,7 @@ import Cookies from "js-cookie";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL_USER;
 const API_BASE_URL_RESTAURANT = process.env.NEXT_PUBLIC_API_URL_RESTAURANT;
 const API_BASE_URL_DRIVER = process.env.NEXT_PUBLIC_API_URL_DRIVER;
+const API_BASE_URL_REFERRAL = process.env.NEXT_PUBLIC_API_URL_REFERAL;
 
 // Cookie configuration
 const COOKIE_OPTIONS = {
@@ -34,7 +35,7 @@ const getUserData = () => {
 // Get user UUID from cookies
 const getUserId = () => {
   const userData = getUserData();
-  return userData?.uuid  || null;
+  return userData?.uuid || null;
 };
 
 // Set auth data in cookies
@@ -73,17 +74,18 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
   }
 
   try {
-    const response = await fetch(
-      `${baseUrl}${endpoint}`,
-      config
-    );
+    const response = await fetch(`${baseUrl}${endpoint}`, config);
 
-    console.log("Response from API:", {
-      url: `${baseUrl}${endpoint}`,
-      status: response.status,
-      headers: response.headers,
-      options: config,
-    }, response);
+    console.log(
+      "Response from API:",
+      {
+        url: `${baseUrl}${endpoint}`,
+        status: response.status,
+        headers: response.headers,
+        options: config,
+      },
+      response
+    );
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -306,7 +308,7 @@ export const authAPI = {
 };
 
 // Restaurant API calls
-export const  restaurantAPI = {
+export const restaurantAPI = {
   // Create restaurant data onboarding
   createRestaurantData: (profileData) =>
     apiCall(
@@ -348,8 +350,13 @@ export const  restaurantAPI = {
       API_BASE_URL_RESTAURANT
     ),
   getMenuItem: (itemId) =>
-    apiCall('/api/items/owner/restaurant', {
-      method: "GET"    }, API_BASE_URL_RESTAURANT),
+    apiCall(
+      "/api/items/owner/restaurant",
+      {
+        method: "GET",
+      },
+      API_BASE_URL_RESTAURANT
+    ),
   updateMenuItem: (itemId, item) =>
     apiCall(
       `/api/items/${itemId}`,
@@ -370,14 +377,22 @@ export const  restaurantAPI = {
   getDashboardStats: () =>
     apiCall("/api/restaurant/dashboard", {}, API_BASE_URL_RESTAURANT),
   getOwnerRestaurant: async () => {
-    return apiCall("/api/restaurants/owner/me", {
-      method : "GET"
-    }, API_BASE_URL_RESTAURANT);
+    return apiCall(
+      "/api/restaurants/owner/me",
+      {
+        method: "GET",
+      },
+      API_BASE_URL_RESTAURANT
+    );
   },
- getOwnerRestaurant: async () => {
-    return apiCall("/api/restaurants/owner/me", {
-      method : "GET"
-    }, API_BASE_URL_RESTAURANT);
+  getOwnerRestaurant: async () => {
+    return apiCall(
+      "/api/restaurants/owner/me",
+      {
+        method: "GET",
+      },
+      API_BASE_URL_RESTAURANT
+    );
   },
 };
 
@@ -459,7 +474,65 @@ export const customerAPI = {
     apiCall(`/api/restaurants/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
   },
   getMenuItems: async (restaurantId) => {
-    return apiCall(`/api/menus/restaurant/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+    return apiCall(
+      `/api/menus/restaurant/${restaurantId}`,
+      {},
+      API_BASE_URL_RESTAURANT
+    );
+  },
+};
+
+// Referral API calls
+export const referralAPI = {
+  generateReferralCode: async () => {
+    const res = await apiCall(
+      "/api/referrals/generate",
+      { method: "POST" },
+      API_BASE_URL_REFERRAL
+    );
+    return res;
+  },
+
+  resetreferralCode: async () => {
+    const res = await apiCall(
+      "/api/referrals/reset",
+      { method: "POST" },
+      API_BASE_URL_REFERRAL
+    );
+    return res;
+  },
+  getMyReferralCode: async () => {
+    const res = await apiCall("/api/referrals/my", {}, API_BASE_URL_REFERRAL);
+    return res;
+  },
+  getwhoreferredMe: async () => {
+    const res = await apiCall(
+      "/api/referrals/referred-by",
+      {},
+      API_BASE_URL_REFERRAL
+    );
+    return res;
+  },
+
+  getPeopleIReferred: async () => {
+    const res = await apiCall(
+      "/api/referrals/referrals",
+      {},
+      API_BASE_URL_REFERRAL
+    );
+    return res;
+  },
+
+  useReferralCode: async (code) => {
+    const res = await apiCall(
+      "/api/referrals/use",
+      {
+        method: "POST",
+        body: JSON.stringify({ code }),
+      },
+      API_BASE_URL_REFERRAL
+    );
+    return res;
   },
 };
 
