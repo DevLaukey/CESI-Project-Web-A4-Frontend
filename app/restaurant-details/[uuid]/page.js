@@ -24,6 +24,7 @@ import {
 import { customerAPI } from "@/libs/api";
 import { CartContext } from "@/components/AppContext";
 import FloatingCart from "@/components/layout/FloatingCart"; 
+import Image from "next/image";
 
 function RestaurantDetailPage() {
   const router = useRouter();
@@ -274,10 +275,9 @@ function RestaurantDetailPage() {
   };
 
   const getRestaurantImage = () => {
-    if (!restaurant) return "";
-    return (
-      restaurant.bannerImage ||
-      restaurant.profileImage ||
+    if (!restaurant) return "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&h=400&fit=crop";
+    else
+      return (
       "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&h=400&fit=crop"
     );
   };
@@ -381,17 +381,20 @@ function RestaurantDetailPage() {
 
       {/* Header Image */}
       <div className="relative h-64 sm:h-80 lg:h-96">
-        <img
+        <Image
           src={getRestaurantImage()}
           alt={restaurant.name}
-          className="w-full h-full object-cover"
+          width={300}
+          height={500}
+          quality={100}
+          className="w-full h-full rounded-t-lg object-cover"
           onError={(e) => {
             e.target.src =
-              "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&h=400&fit=crop";
+              "https://th.bing.com/th/id/OIP.3MEpKjAjT2jsg_JaMsx7egHaE8?w=800&h=400&fit=crop";
           }}
         />
 
-        <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+        <div className="absolute inset-0  bg-opacity-20"></div>
 
         <button
           onClick={() => router.back()}

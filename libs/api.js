@@ -117,6 +117,7 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
   }
 };
 
+
 // Server-side API call function (for middleware or server components)
 export const serverApiCall = async (endpoint, options = {}, request = null) => {
   let token = null;
@@ -506,7 +507,7 @@ export const customerAPI = {
       },
       API_BASE_URL
     ),
-  getRestaurantById: async (restaurantId) => {
+    getRestaurantById: async (restaurantId) => {
     return apiCall(`/api/restaurants/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
   }
 };
