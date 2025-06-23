@@ -407,3 +407,36 @@ a.secondary:hover {
 .bg-gradient-teal-yellow {
   background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
 }
+
+
+.form-input {
+  @apply w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder-gray-500;
+}
+
+.has-error .form-input {
+  @apply border-red-300 focus:border-red-500 focus:ring-red-500;
+}
+
+.form-textarea {
+  @apply w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder-gray-500 resize-none;
+}
+
+.has-error .form-textarea {
+  @apply border-red-300 focus:border-red-500 focus:ring-red-500;
+}
+
+.form-select {
+  @apply w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200 text-gray-900;
+}
+
+.has-error .form-select {
+  @apply border-red-300 focus:border-red-500 focus:ring-red-500;
+}
+
+.btn-primary {
+  @apply bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center gap-2;
+}
+
+.btn-secondary {
+  @apply bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-xl transition-all duration-200 border border-gray-200 disabled:opacity-50;
+}

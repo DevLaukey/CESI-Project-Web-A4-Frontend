@@ -152,7 +152,7 @@ export default function Hero() {
     if (isSubmitting || !selectedAddress) return;
 
     // Check if user is customer for delivery
-    if (user && user.userType !== "customer") {
+    if (user && user.userType !== "end_user") {
       setAddressError(
         "Restaurant delivery is only available for customers. Please log in as a customer."
       );
@@ -186,7 +186,7 @@ export default function Hero() {
   const handleBrowseRestaurants = () => {
     if (hasStoredLocation && selectedAddress?.isInDeliveryArea) {
       // Check user type
-      if (user && user.userType !== "customer") {
+      if (user && user.userType !== "end_user") {
         setAddressError("Restaurant browsing is only available for customers.");
         return;
       }
@@ -348,7 +348,7 @@ export default function Hero() {
                       </div>
 
                       {/* User type warning */}
-                      {user && user.userType !== "customer" && (
+                      {user && user.userType !== "end_user" && (
                         <div className="mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
                           <p className="text-yellow-800 text-sm">
                             <strong>Note:</strong> You're logged in as{" "}
@@ -363,11 +363,11 @@ export default function Hero() {
                           onClick={handleBrowseRestaurants}
                           disabled={
                             !selectedAddress.isInDeliveryArea ||
-                            (user && user.userType !== "customer")
+                            (user && user.userType !== "end_user")
                           }
                           className={`flex-1 font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-xl sm:rounded-2xl transition-all duration-300 text-sm sm:text-base ${
                             selectedAddress.isInDeliveryArea &&
-                            (!user || user.userType === "customer")
+                            (!user || user.userType === "end_user")
                               ? "bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-gray-900 hover:scale-105 shadow-lg"
                               : "bg-gray-300 text-gray-500 cursor-not-allowed"
                           }`}
@@ -403,11 +403,11 @@ export default function Hero() {
                       <button
                         onClick={handleAddressSubmit}
                         disabled={
-                          isSubmitting || (user && user.userType !== "customer")
+                          isSubmitting || (user && user.userType !== "end_user")
                         }
                         className={`w-full py-3 sm:py-4 px-4 sm:px-6 rounded-xl sm:rounded-2xl font-bold transition-all duration-300 text-sm sm:text-base shadow-lg ${
                           !isSubmitting &&
-                          (!user || user.userType === "customer")
+                          (!user || user.userType === "end_user")
                             ? "bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-gray-900 hover:scale-105 transform"
                             : "bg-gray-300 text-gray-500 cursor-not-allowed"
                         }`}
@@ -463,7 +463,7 @@ export default function Hero() {
                     )}
 
                     {/* User type warning for non-customers */}
-                    {user && user.userType !== "customer" && (
+                    {user && user.userType !== "end_user" && (
                       <div className="bg-yellow-100/95 backdrop-blur-sm border border-yellow-300 text-yellow-800 px-4 py-3 rounded-xl shadow-lg">
                         <div className="flex items-start gap-2">
                           <svg
