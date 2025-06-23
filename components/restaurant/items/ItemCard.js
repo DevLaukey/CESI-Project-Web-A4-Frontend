@@ -14,6 +14,9 @@ export default function ItemCard({
   onToggleStatus,
   onUpdateStock,
 }) {
+
+
+  console.log("ItemCard rendered for item:", item);
   const getStatusColor = (status) => {
     return status === "active" || item.isAvailable
       ? "bg-green-100 text-green-800"
@@ -76,13 +79,7 @@ export default function ItemCard({
           onToggleStatus={onToggleStatus}
         />
         <ItemDetails item={item} stockStatus={stockStatus} />
-        <ItemIngredients ingredients={item.ingredients} />
-        <ItemAllergens allergens={item.allergens} />
-        <ItemStats item={item} stockStatus={stockStatus} />
-        <StockManagement
-          stock={item.stock || 0}
-          onUpdateStock={onUpdateStock}
-        />
+     
         <ItemActions onEdit={onEdit} onDelete={onDelete} />
       </div>
     </div>
