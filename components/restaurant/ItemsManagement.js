@@ -160,6 +160,8 @@ export default function ItemsManagement() {
 
   return (
     <div className="space-y-6">
+
+
       <ItemsHeader onCreateClick={() => setShowCreateModal(true)} />
 
       <ItemsFilters

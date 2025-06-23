@@ -509,8 +509,6 @@ function DashboardLayoutContent({ children }) {
           setHasRestaurant(false);
           console.log("No restaurant found, redirecting to onboarding...");
 
-
-
           return;
         }
       } catch (error) {
@@ -553,9 +551,22 @@ function DashboardLayoutContent({ children }) {
   const handleToggleRestaurantStatus = async () => {
     try {
       // This would be your API call to toggle restaurant status
-      // const response = await restaurantAPI.toggleStatus();
+      // make isOpenNow to toggle the status
 
-      // For now, we'll just toggle locally
+      console.log("Toggling restaurant status...");
+
+      console.log("Current restaurant status:", restaurant.isOpen);
+      const response = await restaurantAPI.toggleRestaurantStatus(
+       !restaurant.isOpen,
+      );
+
+      console.log("Toggle status response:", response);
+
+      if (!response.success) {
+        throw new Error("Failed to toggle restaurant status");
+      }
+
+      // Update local state to reflect the new status
       setRestaurant((prev) => ({
         ...prev,
         isOpen: !prev.isOpen,
@@ -628,7 +639,6 @@ function DashboardLayoutContent({ children }) {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <p className="text-gray-600 mb-4">
-            
             Redirecting to restaurant setup...
           </p>
           <Loader2 size={32} className="animate-spin text-yellow-500 mx-auto" />

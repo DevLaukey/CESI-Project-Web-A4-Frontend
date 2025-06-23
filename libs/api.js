@@ -339,30 +339,23 @@ export const restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
-  getCategories: () =>
-    apiCall("/api/categories", {}, API_BASE_URL_RESTAURANT),
+  getCategories: () => apiCall("/api/categories", {}, API_BASE_URL_RESTAURANT),
   getItems: () =>
     apiCall("/api/items/owner/restaurant", {}, API_BASE_URL_RESTAURANT),
 
-  getMenu: () =>
+  getMenus: () =>
     apiCall("/api/menus/owner/restaurant", {}, API_BASE_URL_RESTAURANT),
-  addMenuItem: (item) =>
+  createMenu: (item) =>
     apiCall(
-      "/api/items",
+      "/api/menus",
       {
         method: "POST",
         body: JSON.stringify(item),
       },
       API_BASE_URL_RESTAURANT
     ),
-  getMenuItem: (itemId) =>
-    apiCall(
-      "/api/items/owner/restaurant",
-      {
-        method: "GET",
-      },
-      API_BASE_URL_RESTAURANT
-    ),
+  getMenuItems: () =>
+    apiCall("/api/items/owner/restaurant", {}, API_BASE_URL_RESTAURANT),
   updateMenuItem: (itemId, item) =>
     apiCall(
       `/api/items/${itemId}`,
@@ -400,6 +393,27 @@ export const restaurantAPI = {
       API_BASE_URL_RESTAURANT
     );
   },
+
+  toggleRestaurantStatus: (isOpen) =>
+    apiCall(
+      `/api/restaurants/owner/me`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          isOpen,
+        }),
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+
+  deleteMenu: (menuId) =>
+    apiCall(
+      `/api/menus/${menuId}`,
+      {
+        method: "DELETE",
+      },
+      API_BASE_URL_RESTAURANT
+    ),
 };
 
 // Driver API calls
