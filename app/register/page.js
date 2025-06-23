@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI } from "@/libs/api";
 
 export default function RegisterPage() {
+  // State variables for form inputs and status
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");

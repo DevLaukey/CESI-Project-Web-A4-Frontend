@@ -13,7 +13,6 @@ const COOKIE_OPTIONS = {
   path: "/",
 };
 
-// Get token from cookies
 const getToken = () => {
   return Cookies.get("authToken");
 };
@@ -308,6 +307,7 @@ export const authAPI = {
 
 // Restaurant API calls
 export const  restaurantAPI = {
+  // Create restaurant data onboarding
   createRestaurantData: (profileData) =>
     apiCall(
       "/api/restaurants",
@@ -425,7 +425,8 @@ export const driverAPI = {
 
 // Customer API calls
 export const customerAPI = {
-  getRestaurants: () => apiCall("/api/restaurants", {}, API_BASE_URL),
+  getRestaurants: () =>
+    apiCall("/api/restaurants", {}, API_BASE_URL_RESTAURANT),
   searchRestaurants: (queryParams) => {
     const endpoint = queryParams
       ? `/api/restaurants/search`
@@ -454,6 +455,12 @@ export const customerAPI = {
       },
       API_BASE_URL
     ),
+  getRestaurantById: async (restaurantId) => {
+    apiCall(`/api/restaurants/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+  },
+  getMenuItems: async (restaurantId) => {
+    return apiCall(`/api/menus/restaurant/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+  },
 };
 
 // Export helper functions for external use
