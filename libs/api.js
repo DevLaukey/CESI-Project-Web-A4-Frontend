@@ -4,7 +4,7 @@ import { get } from "mongoose";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL_USER;
 const API_BASE_URL_RESTAURANT = process.env.NEXT_PUBLIC_API_URL_RESTAURANT;
-const API_BASE_URL_DRIVER = process.env.NEXT_PUBLIC_API_URL_DRIVER;
+const API_BASE_URL_DRIVER = process.env.NEXT_PUBLIC_API_URL_DELIVERY;
 const API_BASE_URL_REFERRAL = process.env.NEXT_PUBLIC_API_URL_REFERAL;
 
 // Cookie configuration
@@ -434,6 +434,24 @@ export const restaurantAPI = {
 
 // Driver API calls
 export const driverAPI = {
+  createDriverProfile: (profileData) =>
+    apiCall(
+      "/api/drivers/register",
+      {
+        method: "POST",
+        body: JSON.stringify(profileData),
+      },
+      API_BASE_URL_DRIVER
+    ),
+  updateDriverProfile: (profileData) =>
+    apiCall(
+      "/api/drivers/profile",
+      {
+        method: "PUT",
+        body: JSON.stringify(profileData),
+      },
+      API_BASE_URL_DRIVER
+    ),
   getAvailableDeliveries: () =>
     apiCall("/api/driver/deliveries/available", {}, API_BASE_URL_DRIVER),
   acceptDelivery: (deliveryId) =>

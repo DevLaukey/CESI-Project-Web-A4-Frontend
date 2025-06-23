@@ -395,23 +395,27 @@ export default function DriverOnboarding() {
         vehicle_color: formData.vehicle_color || null,
         license_plate: formData.license_plate.trim(),
         insurance_number: formData.insurance_number?.trim() || null,
-        documents: {
-          ...formData.documents,
-          emergency_contact_name: formData.emergency_contact_name,
-          emergency_contact_phone: formData.emergency_contact_phone,
-          bank_account_iban:
-            formData.bank_account_iban?.replace(/\s/g, "") || null,
-          tax_id: formData.tax_id || null,
-        },
+        // documents: {
+        //   ...formData.documents,
+        //   emergency_contact_name: formData.emergency_contact_name,
+        //   emergency_contact_phone: formData.emergency_contact_phone,
+        //   bank_account_iban:
+        //     formData.bank_account_iban?.replace(/\s/g, "") || null,
+        //   tax_id: formData.tax_id || null,
+        // },
       };
 
       console.log("Submitting driver data:", driverData);
 
       // This would be your actual API call
-      // const response = await driverAPI.createDriverProfile(driverData);
+      const response = await driverAPI.createDriverProfile(driverData);
 
-      // Simulate API call for now
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      console.log("Driver profile created:", response); 
+      if (!response || !response.success) {
+        throw new Error(
+          response?.message || "Failed to create driver profile"
+        );
+      }
 
       setSuccessMessage(
         "Driver profile submitted successfully! We'll review your application and get back to you within 24-48 hours."
