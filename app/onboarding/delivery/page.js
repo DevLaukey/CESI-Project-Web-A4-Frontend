@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { driverAPI, getToken } from "@/libs/api"; // You'll need to create driverAPI
+import { driverAPI, getToken } from "@/libs/api";
 import Cookies from "js-cookie";
 import {
   Car,
@@ -67,28 +67,24 @@ export default function DriverOnboarding() {
     {
       value: "bike",
       label: "Bicycle",
-      icon: "🚲",
       description: "Eco-friendly, great for city centers",
       requirements: ["Valid ID", "Profile photo"],
     },
     {
       value: "scooter",
       label: "Scooter/Motorcycle",
-      icon: "🛵",
       description: "Fast and efficient for medium distances",
       requirements: ["Driver license", "Vehicle registration", "Insurance"],
     },
     {
       value: "car",
       label: "Car",
-      icon: "🚗",
       description: "Best for long distances and large orders",
       requirements: ["Driver license", "Vehicle registration", "Insurance"],
     },
     {
       value: "truck",
       label: "Truck/Van",
-      icon: "🚛",
       description: "Perfect for bulk deliveries",
       requirements: [
         "Commercial license",
@@ -647,7 +643,6 @@ export default function DriverOnboarding() {
                         }`}
                       >
                         <div className="text-center">
-                          <div className="text-3xl mb-2">{type.icon}</div>
                           <h3 className="font-medium text-gray-900">
                             {type.label}
                           </h3>

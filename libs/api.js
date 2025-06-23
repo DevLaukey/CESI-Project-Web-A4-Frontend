@@ -314,7 +314,6 @@ export const authAPI = {
 export const restaurantAPI = {
 
   // Create restaurant data onboarding
-
   createRestaurantData: (profileData) =>
     apiCall(
       "/api/restaurants",
