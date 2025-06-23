@@ -9,6 +9,7 @@ export default function Home() {
     <div className="relative min-h-screen overflow-hidden"> 
       <div className="relative z-10">
       <Hero />
+      {/* Section Headers for registration links for the different users. */}
       <HomeMenu />
       {/* Testimonial Section */}
       <section className="py-20 px-4 bg-white relative overflow-hidden">

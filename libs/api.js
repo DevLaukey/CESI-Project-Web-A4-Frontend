@@ -14,7 +14,6 @@ const COOKIE_OPTIONS = {
   path: "/",
 };
 
-// Get token from cookies
 const getToken = () => {
   return Cookies.get("authToken");
 };
@@ -77,6 +76,7 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
   try {
     const response = await fetch(`${baseUrl}${endpoint}`, config);
 
+
     console.log(
       "Response from API:",
       {
@@ -87,6 +87,7 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
       },
       response
     );
+
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -308,8 +309,9 @@ export const authAPI = {
     ),
 };
 
-// Restaurant API calls
-export const restaurantAPI = {
+
+export const  restaurantAPI = {
+
   createRestaurantData: (profileData) =>
     apiCall(
       "/api/restaurants",
@@ -460,7 +462,16 @@ export const driverAPI = {
 
 // Customer API calls
 export const customerAPI = {
-  getRestaurants: () => apiCall("/api/restaurants", {}, API_BASE_URL),
+
+  getRestaurants: () =>
+    apiCall("/api/restaurants", {}, API_BASE_URL_RESTAURANT),
+  searchRestaurants: (queryParams) => {
+    const endpoint = queryParams
+      ? `/api/restaurants/search`
+      : "/api/restaurants/search";
+    return apiCall(endpoint, {}, API_BASE_URL);
+  },
+
   getRestaurantMenu: (restaurantId) =>
     apiCall(`/api/restaurants/${restaurantId}/menu`, {}, API_BASE_URL),
   placeOrder: (orderData) =>
@@ -483,6 +494,15 @@ export const customerAPI = {
       },
       API_BASE_URL
     ),
+  getRestaurantById: async (restaurantId) => {
+    return apiCall(`/api/restaurants/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+  },
+  getMenuItems: async (restaurantId) => {
+    return apiCall(`/api/items/restaurant/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+  },
+  getMenu: async (restaurantId) => {
+    return apiCall(`/api/menus/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+  },
 };
 
 // Export helper functions for external use
