@@ -1,5 +1,6 @@
 import { createRestaurantData } from "@/types/restaurant";
 import Cookies from "js-cookie";
+import { get } from "mongoose";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL_USER;
 const API_BASE_URL_RESTAURANT = process.env.NEXT_PUBLIC_API_URL_RESTAURANT;
@@ -35,7 +36,7 @@ const getUserData = () => {
 // Get user UUID from cookies
 const getUserId = () => {
   const userData = getUserData();
-  return userData?.uuid  || null;
+  return userData?.uuid || null;
 };
 
 // Set auth data in cookies
@@ -74,17 +75,18 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
   }
 
   try {
-    const response = await fetch(
-      `${baseUrl}${endpoint}`,
-      config
-    );
+    const response = await fetch(`${baseUrl}${endpoint}`, config);
 
-    console.log("Response from API:", {
-      url: `${baseUrl}${endpoint}`,
-      status: response.status,
-      headers: response.headers,
-      options: config,
-    }, response);
+    console.log(
+      "Response from API:",
+      {
+        url: `${baseUrl}${endpoint}`,
+        status: response.status,
+        headers: response.headers,
+        options: config,
+      },
+      response
+    );
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -307,7 +309,7 @@ export const authAPI = {
 };
 
 // Restaurant API calls
-export const  restaurantAPI = {
+export const restaurantAPI = {
   createRestaurantData: (profileData) =>
     apiCall(
       "/api/restaurants",
@@ -337,7 +339,13 @@ export const  restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
-  getMenu: () => apiCall("/api/restaurant/menu", {}, API_BASE_URL_RESTAURANT),
+  getCategories: () =>
+    apiCall("/api/categories", {}, API_BASE_URL_RESTAURANT),
+  getItems: () =>
+    apiCall("/api/items/owner/restaurant", {}, API_BASE_URL_RESTAURANT),
+
+  getMenu: () =>
+    apiCall("/api/menus/owner/restaurant", {}, API_BASE_URL_RESTAURANT),
   addMenuItem: (item) =>
     apiCall(
       "/api/items",
@@ -348,8 +356,13 @@ export const  restaurantAPI = {
       API_BASE_URL_RESTAURANT
     ),
   getMenuItem: (itemId) =>
-    apiCall('/api/items/owner/restaurant', {
-      method: "GET"    }, API_BASE_URL_RESTAURANT),
+    apiCall(
+      "/api/items/owner/restaurant",
+      {
+        method: "GET",
+      },
+      API_BASE_URL_RESTAURANT
+    ),
   updateMenuItem: (itemId, item) =>
     apiCall(
       `/api/items/${itemId}`,
@@ -370,14 +383,22 @@ export const  restaurantAPI = {
   getDashboardStats: () =>
     apiCall("/api/restaurant/dashboard", {}, API_BASE_URL_RESTAURANT),
   getOwnerRestaurant: async () => {
-    return apiCall("/api/restaurants/owner/me", {
-      method : "GET"
-    }, API_BASE_URL_RESTAURANT);
+    return apiCall(
+      "/api/restaurants/owner/me",
+      {
+        method: "GET",
+      },
+      API_BASE_URL_RESTAURANT
+    );
   },
- getOwnerRestaurant: async () => {
-    return apiCall("/api/restaurants/owner/me", {
-      method : "GET"
-    }, API_BASE_URL_RESTAURANT);
+  getOwnerRestaurant: async () => {
+    return apiCall(
+      "/api/restaurants/owner/me",
+      {
+        method: "GET",
+      },
+      API_BASE_URL_RESTAURANT
+    );
   },
 };
 
@@ -426,12 +447,6 @@ export const driverAPI = {
 // Customer API calls
 export const customerAPI = {
   getRestaurants: () => apiCall("/api/restaurants", {}, API_BASE_URL),
-  searchRestaurants: (queryParams) => {
-    const endpoint = queryParams
-      ? `/api/restaurants/search`
-      : "/api/restaurants/search";
-    return apiCall(endpoint, {}, API_BASE_URL);
-  },
   getRestaurantMenu: (restaurantId) =>
     apiCall(`/api/restaurants/${restaurantId}/menu`, {}, API_BASE_URL),
   placeOrder: (orderData) =>
