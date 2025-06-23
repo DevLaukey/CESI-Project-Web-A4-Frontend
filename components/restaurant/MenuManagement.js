@@ -1,104 +1,562 @@
-// components/restaurant/MenuManagement.js
 "use client";
 import { useState, useEffect } from "react";
+import { restaurantAPI } from "@/libs/api";
+import FormField from "./items/FormField";
+import FormError from "./items/FormError";
+import ModalWrapper from "./items//ModalWrapper";
+import ToggleField from "./items/ToggleField";
 
 export default function MenuManagement() {
-  const [menus, setMenus] = useState([
-    {
-      id: 1,
-      name: "Main Menu",
-      description: "Our signature dishes and daily favorites",
-      itemCount: 24,
-      status: "active",
-      lastUpdated: "2024-12-20",
-      categories: ["Pizza", "Pasta", "Salads", "Desserts"],
-    },
-    {
-      id: 2,
-      name: "Breakfast Menu",
-      description: "Early morning delights and coffee",
-      itemCount: 12,
-      status: "active",
-      lastUpdated: "2024-12-18",
-      categories: ["Breakfast", "Coffee", "Pastries"],
-    },
-    {
-      id: 3,
-      name: "Happy Hour",
-      description: "Special pricing for evening appetizers",
-      itemCount: 8,
-      status: "inactive",
-      lastUpdated: "2024-12-15",
-      categories: ["Appetizers", "Drinks"],
-    },
-    {
-      id: 4,
-      name: "Weekend Special",
-      description: "Exclusive weekend offerings",
-      itemCount: 6,
-      status: "active",
-      lastUpdated: "2024-12-19",
-      categories: ["Specials", "Brunch"],
-    },
-  ]);
-
+  const [menus, setMenus] = useState([]);
+  const [availableItems, setAvailableItems] = useState([]);
+  const [itemsLoading, setItemsLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedMenu, setSelectedMenu] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [createError, setCreateError] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+
   const [newMenu, setNewMenu] = useState({
     name: "",
     description: "",
-    status: "active",
+    price: "",
+    originalPrice: "",
+    preparationTime: "20",
+    images: [],
+    tags: [],
+    validFrom: "",
+    validUntil: "",
+    sortOrder: "0",
+    items: [],
   });
 
-  const handleCreateMenu = () => {
-    if (newMenu.name.trim()) {
-      const menu = {
-        id: Date.now(),
-        name: newMenu.name,
-        description: newMenu.description,
-        itemCount: 0,
-        status: newMenu.status,
-        lastUpdated: new Date().toISOString().split("T")[0],
-        categories: [],
+  const [editMenu, setEditMenu] = useState({
+    name: "",
+    description: "",
+    price: "",
+    originalPrice: "",
+    preparationTime: "20",
+    images: [],
+    tags: [],
+    validFrom: "",
+    validUntil: "",
+    sortOrder: "0",
+    items: [],
+  });
+
+  const [newTag, setNewTag] = useState("");
+  const [newImage, setNewImage] = useState("");
+
+  // Load menus and available items on component mount
+  useEffect(() => {
+    loadMenus();
+    loadAvailableItems();
+  }, []);
+
+  const loadMenus = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await restaurantAPI.getMenus();
+      setMenus(data.menus || []);
+    } catch (err) {
+      console.error("Error loading menus:", err);
+      setError("Failed to load menus. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAvailableItems = async () => {
+    try {
+      setItemsLoading(true);
+      console.log("Loading items for menu creation...");
+
+      // Use your existing API pattern with params
+      const params = {
+        page: 1,
+        limit: 100, // Get enough items for selection
+        status: "active", // Only get active items
       };
 
-      setMenus((prev) => [...prev, menu]);
-      setNewMenu({ name: "", description: "", status: "active" });
+      console.log("Calling restaurantAPI.getItems with params:", params);
+      const response = await restaurantAPI.getItems(params);
+      console.log("Items response:", response);
+      console.log("Items array:", response?.items);
+
+      setAvailableItems(response?.items || []);
+      console.log("Available items set:", response?.items || []);
+    } catch (err) {
+      console.error("Error loading items:", err);
+      setAvailableItems([]);
+    } finally {
+      setItemsLoading(false);
+    }
+  };
+
+  const retryLoadItems = () => {
+    loadAvailableItems();
+  };
+
+  const clearErrors = (fieldName) => {
+    if (fieldErrors[fieldName]) {
+      setFieldErrors((prev) => ({ ...prev, [fieldName]: undefined }));
+    }
+    if (createError) setCreateError("");
+    if (error) setError(null);
+  };
+
+  const validateForm = (menuData) => {
+    const errors = {};
+
+    // Name validation
+    if (!menuData.name.trim()) {
+      errors.name = "Menu name is required";
+    } else if (menuData.name.trim().length < 2) {
+      errors.name = "Menu name must be at least 2 characters long";
+    } else if (menuData.name.trim().length > 100) {
+      errors.name = "Menu name cannot exceed 100 characters";
+    }
+
+    // Description validation
+    if (menuData.description && menuData.description.length > 1000) {
+      errors.description = "Description cannot exceed 1000 characters";
+    }
+
+    // Price validation
+    if (!menuData.price || menuData.price === "") {
+      errors.price = "Price is required";
+    } else {
+      const price = parseFloat(menuData.price);
+      if (isNaN(price) || price < 0) {
+        errors.price = "Price cannot be negative";
+      } else if (price > 1000) {
+        errors.price = "Price cannot exceed 1000";
+      }
+    }
+
+    // Original price validation
+    if (menuData.originalPrice && menuData.originalPrice !== "") {
+      const originalPrice = parseFloat(menuData.originalPrice);
+      const price = parseFloat(menuData.price);
+
+      if (isNaN(originalPrice) || originalPrice < 0) {
+        errors.originalPrice = "Original price cannot be negative";
+      } else if (originalPrice > 1000) {
+        errors.originalPrice = "Original price cannot exceed 1000";
+      } else if (!isNaN(price) && originalPrice <= price) {
+        errors.originalPrice =
+          "Original price must be higher than current price";
+      }
+    }
+
+    // Preparation time validation
+    if (menuData.preparationTime) {
+      const prepTime = parseInt(menuData.preparationTime);
+      if (isNaN(prepTime) || prepTime < 10) {
+        errors.preparationTime = "Preparation time must be at least 10 minutes";
+      } else if (prepTime > 120) {
+        errors.preparationTime = "Preparation time cannot exceed 120 minutes";
+      }
+    }
+
+    // Images validation
+    if (menuData.images && menuData.images.length > 5) {
+      errors.images = "Cannot have more than 5 images";
+    }
+
+    // Tags validation
+    if (menuData.tags && menuData.tags.length > 10) {
+      errors.tags = "Cannot have more than 10 tags";
+    }
+
+    // Date validation
+    if (menuData.validFrom && menuData.validUntil) {
+      const validFrom = new Date(menuData.validFrom);
+      const validUntil = new Date(menuData.validUntil);
+
+      if (validUntil <= validFrom) {
+        errors.validUntil = "Valid until date must be after valid from date";
+      }
+    }
+
+    // Items validation
+    if (menuData.items && menuData.items.length > 20) {
+      errors.items = "Menu cannot contain more than 20 items";
+    }
+
+    // Validate individual items
+    if (menuData.items && menuData.items.length > 0) {
+      menuData.items.forEach((item, index) => {
+        if (!item.itemId || item.itemId <= 0) {
+          errors[`items.${index}.itemId`] = "Item ID must be a positive number";
+        }
+        if (item.quantity && (item.quantity < 1 || item.quantity > 10)) {
+          errors[`items.${index}.quantity`] =
+            "Quantity must be between 1 and 10";
+        }
+        if (item.extraPrice && (item.extraPrice < 0 || item.extraPrice > 100)) {
+          errors[`items.${index}.extraPrice`] =
+            "Extra price must be between 0 and 100";
+        }
+      });
+    }
+
+    return errors;
+  };
+
+  const handleCreateMenu = async () => {
+    // Clear previous errors
+    setFieldErrors({});
+    setCreateError("");
+
+    // Client-side validation
+    const validationErrors = validateForm(newMenu);
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      return;
+    }
+
+    setActionLoading(true);
+
+    try {
+      const menuData = {
+        name: newMenu.name.trim(),
+        description: newMenu.description.trim(),
+        price: parseFloat(newMenu.price),
+        originalPrice: newMenu.originalPrice
+          ? parseFloat(newMenu.originalPrice)
+          : undefined,
+        preparationTime: parseInt(newMenu.preparationTime) || 20,
+        images: newMenu.images,
+        tags: newMenu.tags,
+        validFrom: newMenu.validFrom || undefined,
+        validUntil: newMenu.validUntil || undefined,
+        sortOrder: parseInt(newMenu.sortOrder) || 0,
+        items: newMenu.items,
+      };
+
+      const response = await restaurantAPI.createMenu(menuData);
+      setMenus((prev) => [...prev, response.menu]);
+      setNewMenu({
+        name: "",
+        description: "",
+        price: "",
+        originalPrice: "",
+        preparationTime: "20",
+        images: [],
+        tags: [],
+        validFrom: "",
+        validUntil: "",
+        sortOrder: "0",
+        items: [],
+      });
       setShowCreateModal(false);
+    } catch (error) {
+      console.error("Error creating menu:", error);
+      console.error("Error response data:", error.response?.data);
+      console.error("Error message:", error.message);
+
+      if (error.response?.data) {
+        const errorData = error.response.data;
+
+        // Handle Joi validation errors
+        if (errorData.details) {
+          const validationErrors = {};
+          errorData.details.forEach((detail) => {
+            const fieldName = detail.path[0];
+            validationErrors[fieldName] = detail.message;
+          });
+          setFieldErrors(validationErrors);
+          setCreateError("Please fix the validation errors below");
+        }
+        // Handle custom field errors
+        else if (errorData.fieldErrors) {
+          setFieldErrors(errorData.fieldErrors);
+          setCreateError(
+            errorData.message || "Please fix the highlighted errors"
+          );
+        }
+        // Handle validation errors in different format
+        else if (errorData.error && errorData.error.includes("Validation")) {
+          setCreateError(
+            errorData.error || "Validation failed. Please check your input."
+          );
+        }
+        // Handle general errors
+        else {
+          setCreateError(
+            errorData.message || errorData.error || "Failed to create menu"
+          );
+        }
+      } else if (error.message) {
+        // Handle API errors that don't have response.data
+        if (error.message.includes("Validation Error")) {
+          setCreateError(
+            "Validation failed. Please check your input and try again."
+          );
+        } else {
+          setCreateError(error.message);
+        }
+      } else {
+        setCreateError(
+          "Network error. Please check your connection and try again."
+        );
+      }
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleDeleteMenu = (menuId) => {
-    if (confirm("Are you sure you want to delete this menu?")) {
-      setMenus((prev) => prev.filter((menu) => menu.id !== menuId));
+  const handleUpdateMenu = async () => {
+    setFieldErrors({});
+    setCreateError("");
+
+    const validationErrors = validateForm(editMenu);
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      return;
+    }
+
+    setActionLoading(true);
+
+    try {
+      const menuData = {
+        name: editMenu.name.trim(),
+        description: editMenu.description.trim(),
+        price: parseFloat(editMenu.price),
+        originalPrice: editMenu.originalPrice
+          ? parseFloat(editMenu.originalPrice)
+          : undefined,
+        preparationTime: parseInt(editMenu.preparationTime) || 20,
+        images: editMenu.images,
+        tags: editMenu.tags,
+        validFrom: editMenu.validFrom || undefined,
+        validUntil: editMenu.validUntil || undefined,
+        sortOrder: parseInt(editMenu.sortOrder) || 0,
+        items: editMenu.items,
+      };
+
+      const response = await restaurantAPI.updateMenu(
+        selectedMenu.id,
+        menuData
+      );
+      setMenus((prev) =>
+        prev.map((menu) => (menu.id === selectedMenu.id ? response.menu : menu))
+      );
+      setSelectedMenu(null);
+    } catch (error) {
+      console.error("Error updating menu:", error);
+      console.error("Error response data:", error.response?.data);
+      console.error("Error message:", error.message);
+
+      if (error.response?.data) {
+        const errorData = error.response.data;
+
+        // Handle Joi validation errors
+        if (errorData.details) {
+          const validationErrors = {};
+          errorData.details.forEach((detail) => {
+            const fieldName = detail.path[0];
+            validationErrors[fieldName] = detail.message;
+          });
+          setFieldErrors(validationErrors);
+          setCreateError("Please fix the validation errors below");
+        }
+        // Handle custom field errors
+        else if (errorData.fieldErrors) {
+          setFieldErrors(errorData.fieldErrors);
+          setCreateError(
+            errorData.message || "Please fix the highlighted errors"
+          );
+        }
+        // Handle validation errors in different format
+        else if (errorData.error && errorData.error.includes("Validation")) {
+          setCreateError(
+            errorData.error || "Validation failed. Please check your input."
+          );
+        }
+        // Handle general errors
+        else {
+          setCreateError(
+            errorData.message || errorData.error || "Failed to update menu"
+          );
+        }
+      } else if (error.message) {
+        // Handle API errors that don't have response.data
+        if (error.message.includes("Validation Error")) {
+          setCreateError(
+            "Validation failed. Please check your input and try again."
+          );
+        } else {
+          setCreateError(error.message);
+        }
+      } else {
+        setCreateError(
+          "Network error. Please check your connection and try again."
+        );
+      }
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const toggleMenuStatus = (menuId) => {
-    setMenus((prev) =>
-      prev.map((menu) =>
-        menu.id === menuId
-          ? {
-              ...menu,
-              status: menu.status === "active" ? "inactive" : "active",
-            }
-          : menu
+  const handleDeleteMenu = async (menuId) => {
+    const menu = menus.find((m) => m.id === menuId);
+
+    if (
+      !confirm(
+        `Are you sure you want to delete "${menu.name}"? This action cannot be undone.`
       )
-    );
+    ) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await restaurantAPI.deleteMenu(menuId);
+      setMenus((prev) => prev.filter((menu) => menu.id !== menuId));
+    } catch (err) {
+      console.error("Error deleting menu:", err);
+      setError("Failed to delete menu. Please try again.");
+    }
   };
 
-  const getStatusColor = (status) => {
-    return status === "active"
-      ? "bg-green-100 text-green-800"
-      : "bg-gray-100 text-gray-800";
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString();
   };
+
+  const openEditModal = (menu) => {
+    setSelectedMenu(menu);
+    setEditMenu({
+      name: menu.name,
+      description: menu.description || "",
+      price: menu.price?.toString() || "",
+      originalPrice: menu.originalPrice?.toString() || "",
+      preparationTime: menu.preparationTime?.toString() || "20",
+      images: menu.images || [],
+      tags: menu.tags || [],
+      validFrom: menu.validFrom || "",
+      validUntil: menu.validUntil || "",
+      sortOrder: menu.sortOrder?.toString() || "0",
+      items: menu.items || [],
+    });
+    setFieldErrors({});
+    setCreateError("");
+  };
+
+  const updateNewMenuField = (field, value) => {
+    setNewMenu((prev) => ({ ...prev, [field]: value }));
+    clearErrors(field);
+  };
+
+  const updateEditMenuField = (field, value) => {
+    setEditMenu((prev) => ({ ...prev, [field]: value }));
+    clearErrors(field);
+  };
+
+  const addTag = (menuData, setMenuData) => {
+    if (newTag.trim() && menuData.tags.length < 10 && newTag.length <= 30) {
+      if (!menuData.tags.includes(newTag.trim())) {
+        setMenuData((prev) => ({
+          ...prev,
+          tags: [...prev.tags, newTag.trim()],
+        }));
+      }
+      setNewTag("");
+    }
+  };
+
+  const removeTag = (menuData, setMenuData, tagToRemove) => {
+    setMenuData((prev) => ({
+      ...prev,
+      tags: prev.tags.filter((tag) => tag !== tagToRemove),
+    }));
+  };
+
+  const addImage = (menuData, setMenuData) => {
+    if (newImage.trim() && menuData.images.length < 5) {
+      try {
+        new URL(newImage.trim()); // Validate URL
+        if (!menuData.images.includes(newImage.trim())) {
+          setMenuData((prev) => ({
+            ...prev,
+            images: [...prev.images, newImage.trim()],
+          }));
+        }
+        setNewImage("");
+      } catch {
+        setCreateError("Please enter a valid image URL");
+      }
+    }
+  };
+
+  const removeImage = (menuData, setMenuData, imageToRemove) => {
+    setMenuData((prev) => ({
+      ...prev,
+      images: prev.images.filter((img) => img !== imageToRemove),
+    }));
+  };
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    setNewMenu({
+      name: "",
+      description: "",
+      price: "",
+      originalPrice: "",
+      preparationTime: "20",
+      images: [],
+      tags: [],
+      validFrom: "",
+      validUntil: "",
+      sortOrder: "0",
+      items: [],
+    });
+    setFieldErrors({});
+    setCreateError("");
+    setNewTag("");
+    setNewImage("");
+  };
+
+  const openCreateModal = () => {
+    setShowCreateModal(true);
+    // Reload items when opening create modal to ensure fresh data
+    if (availableItems.length === 0) {
+      loadAvailableItems();
+    }
+  };
+
+  const closeEditModal = () => {
+    setSelectedMenu(null);
+    setFieldErrors({});
+    setCreateError("");
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-gray-900">Menu Management</h2>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">Loading menus...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">Menu Management</h2>
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={openCreateModal}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
           <svg
@@ -118,6 +576,814 @@ export default function MenuManagement() {
         </button>
       </div>
 
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg
+                className="h-5 w-5 text-red-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              {/* Menu Items Selection - FORCED VISIBLE FOR TESTING */}
+              <div className="border-2 border-red-500 p-4 bg-red-50">
+                <h3 className="text-red-800 font-bold">
+                  ITEMS SECTION (Debug)
+                </h3>
+                <p>Items loading: {itemsLoading ? "YES" : "NO"}</p>
+                <p>Available items count: {availableItems.length}</p>
+                <p>Items exist: {availableItems.length > 0 ? "YES" : "NO"}</p>
+              </div>
+
+              <FormField label="Items for Menu Item" error={fieldErrors.items}>
+                <div className="space-y-4">
+                  {/* Loading State for Items */}
+                  {itemsLoading && (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      <span className="ml-2 text-gray-600">
+                        Loading base items...
+                      </span>
+                    </div>
+                  )}
+
+                  {/* No Items Available */}
+                  {!itemsLoading && availableItems.length === 0 && (
+                    <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <div className="text-4xl mb-2">🧩</div>
+                      <p className="text-gray-600 font-medium">
+                        No items available
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Create some base items first, then you can compose them
+                        into menu items.
+                      </p>
+                      <div className="mt-3 space-x-2">
+                        <button
+                          type="button"
+                          onClick={retryLoadItems}
+                          className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+                        >
+                          Retry Loading
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => (window.location.href = "/items")}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                        >
+                          Go to Items
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add Item Dropdown */}
+                  {!itemsLoading && availableItems.length > 0 && (
+                    <div className="flex gap-2">
+                      <select
+                        className="form-select flex-1"
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            addItemToMenu(newMenu, setNewMenu, e.target.value);
+                            e.target.value = "";
+                          }
+                        }}
+                        disabled={newMenu.items.length >= 20}
+                      >
+                        <option value="">Select an item to add</option>
+                        {availableItems
+                          .filter(
+                            (item) =>
+                              !newMenu.items.find((mi) => mi.itemId === item.id)
+                          )
+                          .map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.name}{" "}
+                              {item.category ? `(${item.category})` : ""}{" "}
+                              {item.price ? `- ${item.price.toFixed(2)}` : ""}
+                            </option>
+                          ))}
+                      </select>
+                      <div className="text-sm text-gray-500 self-center">
+                        {newMenu.items.length}/20
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Available Items Count */}
+                  {!itemsLoading && availableItems.length > 0 && (
+                    <div className="text-sm text-gray-600">
+                      {
+                        availableItems.filter(
+                          (item) =>
+                            !newMenu.items.find((mi) => mi.itemId === item.id)
+                        ).length
+                      }{" "}
+                      items available to add
+                    </div>
+                  )}
+
+                  {/* Selected Items List */}
+                  {newMenu.items.length > 0 && (
+                    <div className="border rounded-lg p-4 space-y-3">
+                      <h4 className="font-medium text-gray-900">
+                        Selected Items ({newMenu.items.length})
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        These base items will be combined to create this menu
+                        item.
+                      </p>
+                      {newMenu.items.map((menuItem, index) => (
+                        <div
+                          key={menuItem.itemId}
+                          className="bg-gray-50 rounded-lg p-3"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <span className="font-medium text-gray-900">
+                                {getItemName(menuItem.itemId)}
+                              </span>
+                              {availableItems.find(
+                                (item) => item.id === menuItem.itemId
+                              )?.category && (
+                                <span className="text-sm text-gray-500 ml-2">
+                                  (
+                                  {
+                                    availableItems.find(
+                                      (item) => item.id === menuItem.itemId
+                                    )?.category
+                                  }
+                                  )
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeItemFromMenu(
+                                  newMenu,
+                                  setNewMenu,
+                                  menuItem.itemId
+                                )
+                              }
+                              className="text-red-500 hover:text-red-700"
+                              title="Remove item"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Quantity
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={menuItem.quantity}
+                                onChange={(e) =>
+                                  updateMenuItem(
+                                    newMenu,
+                                    setNewMenu,
+                                    menuItem.itemId,
+                                    "quantity",
+                                    e.target.value
+                                  )
+                                }
+                                className="form-input text-sm"
+                                placeholder="1"
+                              />
+                              {fieldErrors[`items.${index}.quantity`] && (
+                                <p className="text-xs text-red-600 mt-1">
+                                  {fieldErrors[`items.${index}.quantity`]}
+                                </p>
+                              )}
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Extra Price ($)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                value={menuItem.extraPrice}
+                                onChange={(e) =>
+                                  updateMenuItem(
+                                    newMenu,
+                                    setNewMenu,
+                                    menuItem.itemId,
+                                    "extraPrice",
+                                    e.target.value
+                                  )
+                                }
+                                className="form-input text-sm"
+                                placeholder="0.00"
+                              />
+                              {fieldErrors[`items.${index}.extraPrice`] && (
+                                <p className="text-xs text-red-600 mt-1">
+                                  {fieldErrors[`items.${index}.extraPrice`]}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex items-end">
+                              <label className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={menuItem.isOptional}
+                                  onChange={(e) =>
+                                    updateMenuItem(
+                                      newMenu,
+                                      setNewMenu,
+                                      menuItem.itemId,
+                                      "isOptional",
+                                      e.target.checked
+                                    )
+                                  }
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="ml-2 text-xs text-gray-700">
+                                  Optional
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Empty State for Selected Items */}
+                  {!itemsLoading &&
+                    availableItems.length > 0 &&
+                    newMenu.items.length === 0 && (
+                      <div className="text-center py-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-sm text-blue-700">
+                          Select base items from the dropdown above to compose
+                          your menu item.
+                        </p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          For example: Select "Pasta", "Tomato Sauce", and
+                          "Cheese" to create "Spaghetti Marinara"
+                        </p>
+                      </div>
+                    )}
+
+                  {/* Validation Message */}
+                  {fieldErrors.items && (
+                    <p className="text-sm text-red-600 mt-1">
+                      {fieldErrors.items}
+                    </p>
+                  )}
+                </div>
+              </FormField>
+
+              {/* Menu Items Selection */}
+              <FormField label="Menu Items" error={fieldErrors.items}>
+                <div className="space-y-4">
+                  {/* Loading State for Items */}
+                  {itemsLoading && (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      <span className="ml-2 text-gray-600">
+                        Loading menu items...
+                      </span>
+                    </div>
+                  )}
+
+                  {/* No Items Available */}
+                  {!itemsLoading && availableItems.length === 0 && (
+                    <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <div className="text-4xl mb-2">📝</div>
+                      <p className="text-gray-600 font-medium">
+                        No menu items available
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Create some menu items first, then you can add them to
+                        menus.
+                      </p>
+                      <div className="mt-3 space-x-2">
+                        <button
+                          type="button"
+                          onClick={retryLoadItems}
+                          className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+                        >
+                          Retry Loading
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => (window.location.href = "/menu-items")}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                        >
+                          Go to Menu Items
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add Item Dropdown */}
+                  {!itemsLoading && availableItems.length > 0 && (
+                    <div className="flex gap-2">
+                      <select
+                        className="form-select flex-1"
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            addItemToMenu(newMenu, setNewMenu, e.target.value);
+                            e.target.value = "";
+                          }
+                        }}
+                        disabled={newMenu.items.length >= 20}
+                      >
+                        <option value="">Select an item to add</option>
+                        {availableItems
+                          .filter(
+                            (item) =>
+                              !newMenu.items.find((mi) => mi.itemId === item.id)
+                          )
+                          .map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.name} - ${item.price?.toFixed(2) || "0.00"}
+                            </option>
+                          ))}
+                      </select>
+                      <div className="text-sm text-gray-500 self-center">
+                        {newMenu.items.length}/20
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Available Items Count */}
+                  {!itemsLoading && availableItems.length > 0 && (
+                    <div className="text-sm text-gray-600">
+                      {
+                        availableItems.filter(
+                          (item) =>
+                            !newMenu.items.find((mi) => mi.itemId === item.id)
+                        ).length
+                      }{" "}
+                      items available to add
+                    </div>
+                  )}
+
+                  {/* Selected Items List */}
+                  {newMenu.items.length > 0 && (
+                    <div className="border rounded-lg p-4 space-y-3">
+                      <h4 className="font-medium text-gray-900">
+                        Selected Items ({newMenu.items.length})
+                      </h4>
+                      {newMenu.items.map((menuItem, index) => (
+                        <div
+                          key={menuItem.itemId}
+                          className="bg-gray-50 rounded-lg p-3"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="font-medium text-gray-900">
+                              {getItemName(menuItem.itemId)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeItemFromMenu(
+                                  newMenu,
+                                  setNewMenu,
+                                  menuItem.itemId
+                                )
+                              }
+                              className="text-red-500 hover:text-red-700"
+                              title="Remove item"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Quantity
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={menuItem.quantity}
+                                onChange={(e) =>
+                                  updateMenuItem(
+                                    newMenu,
+                                    setNewMenu,
+                                    menuItem.itemId,
+                                    "quantity",
+                                    e.target.value
+                                  )
+                                }
+                                className="form-input text-sm"
+                              />
+                              {fieldErrors[`items.${index}.quantity`] && (
+                                <p className="text-xs text-red-600 mt-1">
+                                  {fieldErrors[`items.${index}.quantity`]}
+                                </p>
+                              )}
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Extra Price ($)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                value={menuItem.extraPrice}
+                                onChange={(e) =>
+                                  updateMenuItem(
+                                    newMenu,
+                                    setNewMenu,
+                                    menuItem.itemId,
+                                    "extraPrice",
+                                    e.target.value
+                                  )
+                                }
+                                className="form-input text-sm"
+                              />
+                              {fieldErrors[`items.${index}.extraPrice`] && (
+                                <p className="text-xs text-red-600 mt-1">
+                                  {fieldErrors[`items.${index}.extraPrice`]}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex items-end">
+                              <label className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={menuItem.isOptional}
+                                  onChange={(e) =>
+                                    updateMenuItem(
+                                      newMenu,
+                                      setNewMenu,
+                                      menuItem.itemId,
+                                      "isOptional",
+                                      e.target.checked
+                                    )
+                                  }
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="ml-2 text-xs text-gray-700">
+                                  Optional
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Empty State for Selected Items */}
+                  {!itemsLoading &&
+                    availableItems.length > 0 &&
+                    newMenu.items.length === 0 && (
+                      <div className="text-center py-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-sm text-blue-700">
+                          Select items from the dropdown above to build your
+                          menu.
+                        </p>
+                      </div>
+                    )}
+
+                  {/* Validation Message */}
+                  {fieldErrors.items && (
+                    <p className="text-sm text-red-600 mt-1">
+                      {fieldErrors.items}
+                    </p>
+                  )}
+                </div>
+              </FormField>
+
+              {/* Menu Items Selection */}
+              <FormField label="Items for Menu Item" error={fieldErrors.items}>
+                <div className="space-y-4">
+                  {/* Debug Info */}
+                  {process.env.NODE_ENV === "development" && (
+                    <div className="text-xs text-gray-500 bg-yellow-50 p-2 rounded">
+                      Debug: Items loading: {itemsLoading ? "true" : "false"},
+                      Available items: {availableItems.length}
+                    </div>
+                  )}
+
+                  {/* Loading State for Items */}
+                  {itemsLoading && (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      <span className="ml-2 text-gray-600">
+                        Loading base items...
+                      </span>
+                    </div>
+                  )}
+
+                  {/* No Items Available */}
+                  {!itemsLoading && availableItems.length === 0 && (
+                    <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <div className="text-4xl mb-2">🧩</div>
+                      <p className="text-gray-600 font-medium">
+                        No items available
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Create some base items first, then you can compose them
+                        into menu items.
+                      </p>
+                      <div className="mt-3 space-x-2">
+                        <button
+                          type="button"
+                          onClick={retryLoadItems}
+                          className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+                        >
+                          Retry Loading
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => (window.location.href = "/items")}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                        >
+                          Go to Items
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add Item Dropdown */}
+                  {!itemsLoading && availableItems.length > 0 && (
+                    <div className="flex gap-2">
+                      <select
+                        className="form-select flex-1"
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            addItemToMenu(newMenu, setNewMenu, e.target.value);
+                            e.target.value = "";
+                          }
+                        }}
+                        disabled={newMenu.items.length >= 20}
+                      >
+                        <option value="">Select an item to add</option>
+                        {availableItems
+                          .filter(
+                            (item) =>
+                              !newMenu.items.find((mi) => mi.itemId === item.id)
+                          )
+                          .map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.name}{" "}
+                              {item.category ? `(${item.category})` : ""}{" "}
+                              {item.price ? `- ${item.price.toFixed(2)}` : ""}
+                            </option>
+                          ))}
+                      </select>
+                      <div className="text-sm text-gray-500 self-center">
+                        {newMenu.items.length}/20
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Available Items Count */}
+                  {!itemsLoading && availableItems.length > 0 && (
+                    <div className="text-sm text-gray-600">
+                      {
+                        availableItems.filter(
+                          (item) =>
+                            !newMenu.items.find((mi) => mi.itemId === item.id)
+                        ).length
+                      }{" "}
+                      items available to add
+                    </div>
+                  )}
+
+                  {/* Selected Items List */}
+                  {newMenu.items.length > 0 && (
+                    <div className="border rounded-lg p-4 space-y-3">
+                      <h4 className="font-medium text-gray-900">
+                        Selected Items ({newMenu.items.length})
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        These base items will be combined to create this menu
+                        item.
+                      </p>
+                      {newMenu.items.map((menuItem, index) => (
+                        <div
+                          key={menuItem.itemId}
+                          className="bg-gray-50 rounded-lg p-3"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <span className="font-medium text-gray-900">
+                                {getItemName(menuItem.itemId)}
+                              </span>
+                              {availableItems.find(
+                                (item) => item.id === menuItem.itemId
+                              )?.category && (
+                                <span className="text-sm text-gray-500 ml-2">
+                                  (
+                                  {
+                                    availableItems.find(
+                                      (item) => item.id === menuItem.itemId
+                                    )?.category
+                                  }
+                                  )
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeItemFromMenu(
+                                  newMenu,
+                                  setNewMenu,
+                                  menuItem.itemId
+                                )
+                              }
+                              className="text-red-500 hover:text-red-700"
+                              title="Remove item"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Quantity
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={menuItem.quantity}
+                                onChange={(e) =>
+                                  updateMenuItem(
+                                    newMenu,
+                                    setNewMenu,
+                                    menuItem.itemId,
+                                    "quantity",
+                                    e.target.value
+                                  )
+                                }
+                                className="form-input text-sm"
+                                placeholder="1"
+                              />
+                              {fieldErrors[`items.${index}.quantity`] && (
+                                <p className="text-xs text-red-600 mt-1">
+                                  {fieldErrors[`items.${index}.quantity`]}
+                                </p>
+                              )}
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Extra Price ($)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                value={menuItem.extraPrice}
+                                onChange={(e) =>
+                                  updateMenuItem(
+                                    newMenu,
+                                    setNewMenu,
+                                    menuItem.itemId,
+                                    "extraPrice",
+                                    e.target.value
+                                  )
+                                }
+                                className="form-input text-sm"
+                                placeholder="0.00"
+                              />
+                              {fieldErrors[`items.${index}.extraPrice`] && (
+                                <p className="text-xs text-red-600 mt-1">
+                                  {fieldErrors[`items.${index}.extraPrice`]}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex items-end">
+                              <label className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={menuItem.isOptional}
+                                  onChange={(e) =>
+                                    updateMenuItem(
+                                      newMenu,
+                                      setNewMenu,
+                                      menuItem.itemId,
+                                      "isOptional",
+                                      e.target.checked
+                                    )
+                                  }
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="ml-2 text-xs text-gray-700">
+                                  Optional
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Empty State for Selected Items */}
+                  {!itemsLoading &&
+                    availableItems.length > 0 &&
+                    newMenu.items.length === 0 && (
+                      <div className="text-center py-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-sm text-blue-700">
+                          Select base items from the dropdown above to compose
+                          your menu item.
+                        </p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          For example: Select "Pasta", "Tomato Sauce", and
+                          "Cheese" to create "Spaghetti Marinara"
+                        </p>
+                      </div>
+                    )}
+
+                  {/* Validation Message */}
+                  {fieldErrors.items && (
+                    <p className="text-sm text-red-600 mt-1">
+                      {fieldErrors.items}
+                    </p>
+                  )}
+                </div>
+              </FormField>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button
+                onClick={() => setError(null)}
+                className="text-red-400 hover:text-red-600"
+              >
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Menu Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-lg border border-gray-200">
@@ -132,21 +1398,22 @@ export default function MenuManagement() {
         </div>
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="text-2xl font-bold text-purple-600">
-            {menus.reduce((sum, menu) => sum + menu.itemCount, 0)}
+            {menus.reduce((sum, menu) => sum + (menu.itemCount || 0), 0)}
           </div>
           <div className="text-sm text-gray-600">Total Items</div>
         </div>
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="text-2xl font-bold text-orange-600">
-            {new Set(menus.flatMap((m) => m.categories)).size}
+            $
+            {menus ? menus?.items?.reduce((sum, menu) => sum + (menu.price || 0), 0).toFixed(2) : "0.00"}
           </div>
-          <div className="text-sm text-gray-600">Categories</div>
+          <div className="text-sm text-gray-600">Total Value</div>
         </div>
       </div>
 
       {/* Menu Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {menus.map((menu) => (
+        {menus?.map((menu) => (
           <div
             key={menu.id}
             className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition-shadow"
@@ -157,35 +1424,19 @@ export default function MenuManagement() {
                   {menu.name}
                 </h3>
                 <p className="text-sm text-gray-600 mb-2">{menu.description}</p>
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                    menu.status
-                  )}`}
-                >
-                  {menu.status}
-                </span>
+                {/* <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg font-bold text-green-600">
+                    ${menu.price?.toFixed(2)}
+                  </span>
+                  {menu.originalPrice && (
+                    <span className="text-sm text-gray-500 line-through">
+                      ${menu.originalPrice.toFixed(2)}
+                    </span>
+                  )}
+                </div> */}
               </div>
 
               <div className="flex items-center space-x-1 ml-2">
-                <button
-                  onClick={() => toggleMenuStatus(menu.id)}
-                  className="p-1 text-gray-400 hover:text-gray-600"
-                  title={menu.status === "active" ? "Deactivate" : "Activate"}
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"
-                    />
-                  </svg>
-                </button>
                 <button
                   onClick={() => handleDeleteMenu(menu.id)}
                   className="p-1 text-gray-400 hover:text-red-600"
@@ -210,31 +1461,37 @@ export default function MenuManagement() {
 
             <div className="space-y-2 mb-4">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Items:</span>
-                <span className="font-medium">{menu.itemCount}</span>
+                <span className="text-gray-600">Prep Time:</span>
+                <span className="font-medium">
+                  {menu.preparationTime || 20} min
+                </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Last updated:</span>
-                <span className="font-medium">{menu.lastUpdated}</span>
+                <span className="text-gray-600">Items:</span>
+                <span className="font-medium">{menu.items?.length || 0}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Sort Order:</span>
+                <span className="font-medium">{menu.sortOrder || 0}</span>
               </div>
             </div>
 
-            {/* Categories */}
-            {menu.categories.length > 0 && (
+            {/* Tags */}
+            {menu.tags && menu.tags.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs text-gray-500 mb-2">Categories:</p>
+                <p className="text-xs text-gray-500 mb-2">Tags:</p>
                 <div className="flex flex-wrap gap-1">
-                  {menu.categories.slice(0, 3).map((category, index) => (
+                  {menu.tags.slice(0, 3).map((tag, index) => (
                     <span
                       key={index}
-                      className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded"
+                      className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded"
                     >
-                      {category}
+                      {tag}
                     </span>
                   ))}
-                  {menu.categories.length > 3 && (
+                  {menu.tags.length > 3 && (
                     <span className="text-xs text-gray-500">
-                      +{menu.categories.length - 3} more
+                      +{menu.tags.length - 3} more
                     </span>
                   )}
                 </div>
@@ -243,13 +1500,13 @@ export default function MenuManagement() {
 
             <div className="flex space-x-2">
               <button
-                onClick={() => setSelectedMenu(menu)}
+                onClick={() => openEditModal(menu)}
                 className="flex-1 bg-blue-600 text-white py-2 px-3 text-sm rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Edit Menu
               </button>
               <button className="bg-gray-200 text-gray-700 py-2 px-3 text-sm rounded-lg hover:bg-gray-300 transition-colors">
-                View Items
+                View Details
               </button>
             </div>
           </div>
@@ -257,7 +1514,7 @@ export default function MenuManagement() {
       </div>
 
       {/* Empty State */}
-      {menus.length === 0 && (
+      {menus.length === 0 && !loading && (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">🍽️</div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -267,7 +1524,7 @@ export default function MenuManagement() {
             Create your first menu to start organizing your items.
           </p>
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={openCreateModal}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Create First Menu
@@ -277,191 +1534,828 @@ export default function MenuManagement() {
 
       {/* Create Menu Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Create New Menu</h3>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Menu Name
-                </label>
+        <ModalWrapper
+          title="Create New Menu"
+          subtitle="Add a new menu item to your restaurant"
+          onClose={closeCreateModal}
+        >
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField label="Menu Name" required error={fieldErrors.name}>
                 <input
                   type="text"
                   value={newMenu.name}
-                  onChange={(e) =>
-                    setNewMenu((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="e.g., Lunch Menu, Dinner Specials"
+                  onChange={(e) => updateNewMenuField("name", e.target.value)}
+                  className="form-input"
+                  placeholder="e.g., Combo Meal, Special Dish"
+                  maxLength={100}
                 />
-              </div>
+              </FormField>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  value={newMenu.description}
-                  onChange={(e) =>
-                    setNewMenu((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  rows="3"
-                  placeholder="Brief description of this menu..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <select
-                  value={newMenu.status}
-                  onChange={(e) =>
-                    setNewMenu((prev) => ({ ...prev, status: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
+              <FormField
+                label="Preparation Time"
+                error={fieldErrors.preparationTime}
+              >
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="10"
+                    max="120"
+                    value={newMenu.preparationTime}
+                    onChange={(e) =>
+                      updateNewMenuField("preparationTime", e.target.value)
+                    }
+                    className="form-input"
+                    placeholder="20"
+                  />
+                  <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                    min
+                  </span>
+                </div>
+              </FormField>
             </div>
 
-            <div className="mt-6 flex space-x-3">
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
+            {/* Description */}
+            <FormField label="Description" error={fieldErrors.description}>
+              <textarea
+                value={newMenu.description}
+                onChange={(e) =>
+                  updateNewMenuField("description", e.target.value)
+                }
+                className="form-textarea"
+                rows="3"
+                placeholder="Brief description of this menu..."
+                maxLength={1000}
+              />
+            </FormField>
+
+            {/* Pricing */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField label="Price" required error={fieldErrors.price}>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1000"
+                    value={newMenu.price}
+                    onChange={(e) =>
+                      updateNewMenuField("price", e.target.value)
+                    }
+                    className="form-input pl-8"
+                    placeholder="0.00"
+                  />
+                </div>
+              </FormField>
+
+              <FormField
+                label="Original Price"
+                error={fieldErrors.originalPrice}
               >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateMenu}
-                disabled={!newMenu.name.trim()}
-                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Create Menu
-              </button>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1000"
+                    value={newMenu.originalPrice}
+                    onChange={(e) =>
+                      updateNewMenuField("originalPrice", e.target.value)
+                    }
+                    className="form-input pl-8"
+                    placeholder="0.00"
+                  />
+                </div>
+              </FormField>
             </div>
+
+            {/* Validity Period */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField label="Valid From" error={fieldErrors.validFrom}>
+                <input
+                  type="date"
+                  value={newMenu.validFrom}
+                  onChange={(e) =>
+                    updateNewMenuField("validFrom", e.target.value)
+                  }
+                  className="form-input"
+                />
+              </FormField>
+
+              <FormField label="Valid Until" error={fieldErrors.validUntil}>
+                <input
+                  type="date"
+                  value={newMenu.validUntil}
+                  onChange={(e) =>
+                    updateNewMenuField("validUntil", e.target.value)
+                  }
+                  className="form-input"
+                  min={newMenu.validFrom}
+                />
+              </FormField>
+            </div>
+
+            {/* Sort Order */}
+            <FormField label="Sort Order" error={fieldErrors.sortOrder}>
+              <input
+                type="number"
+                min="0"
+                value={newMenu.sortOrder}
+                onChange={(e) =>
+                  updateNewMenuField("sortOrder", e.target.value)
+                }
+                className="form-input"
+                placeholder="0"
+              />
+            </FormField>
+
+            {/* Tags */}
+            <FormField label="Tags" error={fieldErrors.tags}>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    className="form-input flex-1"
+                    placeholder="Add a tag..."
+                    maxLength={30}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" && addTag(newMenu, setNewMenu)
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addTag(newMenu, setNewMenu)}
+                    disabled={!newTag.trim() || newMenu.tags.length >= 10}
+                    className="btn-primary px-4"
+                  >
+                    Add
+                  </button>
+                </div>
+                {newMenu.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {newMenu.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => removeTag(newMenu, setNewMenu, tag)}
+                          className="ml-2 hover:text-blue-600"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">
+                  {newMenu.tags.length}/10 tags (max 30 characters each)
+                </p>
+              </div>
+            </FormField>
+
+            {/* Images */}
+            <FormField label="Images" error={fieldErrors.images}>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={newImage}
+                    onChange={(e) => setNewImage(e.target.value)}
+                    className="form-input flex-1"
+                    placeholder="https://example.com/image.jpg"
+                    onKeyPress={(e) =>
+                      e.key === "Enter" && addImage(newMenu, setNewMenu)
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addImage(newMenu, setNewMenu)}
+                    disabled={!newImage.trim() || newMenu.images.length >= 5}
+                    className="btn-primary px-4"
+                  >
+                    Add
+                  </button>
+                </div>
+                {newMenu.images.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {newMenu.images.map((image, index) => (
+                      <div
+                        key={index}
+                        className="relative group border rounded-lg p-2 bg-gray-50"
+                      >
+                        <img
+                          src={image}
+                          alt={`Menu image ${index + 1}`}
+                          className="w-full h-16 object-cover rounded"
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                            e.target.nextSibling.style.display = "flex";
+                          }}
+                        />
+                        <div className="hidden w-full h-16 bg-gray-200 rounded items-center justify-center text-gray-500 text-sm">
+                          Invalid image
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            removeImage(newMenu, setNewMenu, image)
+                          }
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">
+                  {newMenu.images.length}/5 images
+                </p>
+              </div>
+            </FormField>
           </div>
-        </div>
+
+          {/* Error Display */}
+          <FormError createError={createError} fieldErrors={fieldErrors} />
+
+          {/* Debug Error Info - Remove in production */}
+          {process.env.NODE_ENV === "development" && createError && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm font-medium text-yellow-800">Debug Info:</p>
+              <p className="text-xs text-yellow-700 mt-1">
+                Error: {createError}
+              </p>
+              {Object.keys(fieldErrors).length > 0 && (
+                <div className="text-xs text-yellow-700 mt-1">
+                  Field Errors: {JSON.stringify(fieldErrors, null, 2)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Debug Error Info - Remove in production */}
+          {process.env.NODE_ENV === "development" && createError && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm font-medium text-yellow-800">Debug Info:</p>
+              <p className="text-xs text-yellow-700 mt-1">
+                Error: {createError}
+              </p>
+              {Object.keys(fieldErrors).length > 0 && (
+                <div className="text-xs text-yellow-700 mt-1">
+                  Field Errors: {JSON.stringify(fieldErrors, null, 2)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="mt-8 flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={closeCreateModal}
+              disabled={actionLoading}
+              className="btn-secondary flex-1"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCreateMenu}
+              disabled={actionLoading || !newMenu.name.trim() || !newMenu.price}
+              className="btn-primary flex-1"
+            >
+              {actionLoading ? (
+                <>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Creating...
+                </>
+              ) : (
+                "Create Menu"
+              )}
+            </button>
+          </div>
+        </ModalWrapper>
       )}
 
       {/* Edit Menu Modal */}
       {selectedMenu && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Edit Menu</h3>
-              <button
-                onClick={() => setSelectedMenu(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Menu Name
-                </label>
+        <ModalWrapper
+          title="Edit Menu"
+          subtitle={`Modify details for "${selectedMenu.name}"`}
+          onClose={closeEditModal}
+        >
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField label="Menu Name" required error={fieldErrors.name}>
                 <input
                   type="text"
-                  defaultValue={selectedMenu.name}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={editMenu.name}
+                  onChange={(e) => updateEditMenuField("name", e.target.value)}
+                  className="form-input"
+                  maxLength={100}
                 />
-              </div>
+              </FormField>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  defaultValue={selectedMenu.description}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  rows="3"
+              <FormField
+                label="Preparation Time"
+                error={fieldErrors.preparationTime}
+              >
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="10"
+                    max="120"
+                    value={editMenu.preparationTime}
+                    onChange={(e) =>
+                      updateEditMenuField("preparationTime", e.target.value)
+                    }
+                    className="form-input"
+                  />
+                  <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                    min
+                  </span>
+                </div>
+              </FormField>
+            </div>
+
+            {/* Description */}
+            <FormField label="Description" error={fieldErrors.description}>
+              <textarea
+                value={editMenu.description}
+                onChange={(e) =>
+                  updateEditMenuField("description", e.target.value)
+                }
+                className="form-textarea"
+                rows="3"
+                maxLength={1000}
+              />
+            </FormField>
+
+            {/* Pricing */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField label="Price" required error={fieldErrors.price}>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1000"
+                    value={editMenu.price}
+                    onChange={(e) =>
+                      updateEditMenuField("price", e.target.value)
+                    }
+                    className="form-input pl-8"
+                  />
+                </div>
+              </FormField>
+
+              <FormField
+                label="Original Price"
+                error={fieldErrors.originalPrice}
+              >
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1000"
+                    value={editMenu.originalPrice}
+                    onChange={(e) =>
+                      updateEditMenuField("originalPrice", e.target.value)
+                    }
+                    className="form-input pl-8"
+                  />
+                </div>
+              </FormField>
+            </div>
+
+            {/* Validity Period */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField label="Valid From" error={fieldErrors.validFrom}>
+                <input
+                  type="date"
+                  value={editMenu.validFrom}
+                  onChange={(e) =>
+                    updateEditMenuField("validFrom", e.target.value)
+                  }
+                  className="form-input"
                 />
-              </div>
+              </FormField>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <select
-                  defaultValue={selectedMenu.status}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
+              <FormField label="Valid Until" error={fieldErrors.validUntil}>
+                <input
+                  type="date"
+                  value={editMenu.validUntil}
+                  onChange={(e) =>
+                    updateEditMenuField("validUntil", e.target.value)
+                  }
+                  className="form-input"
+                  min={editMenu.validFrom}
+                />
+              </FormField>
+            </div>
 
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <div className="text-sm text-gray-600">
-                  <p>
-                    <strong>Items:</strong> {selectedMenu.itemCount}
+            {/* Sort Order */}
+            <FormField label="Sort Order" error={fieldErrors.sortOrder}>
+              <input
+                type="number"
+                min="0"
+                value={editMenu.sortOrder}
+                onChange={(e) =>
+                  updateEditMenuField("sortOrder", e.target.value)
+                }
+                className="form-input"
+              />
+            </FormField>
+
+            {/* Tags */}
+            <FormField label="Tags" error={fieldErrors.tags}>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    className="form-input flex-1"
+                    placeholder="Add a tag..."
+                    maxLength={30}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" && addTag(editMenu, setEditMenu)
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addTag(editMenu, setEditMenu)}
+                    disabled={!newTag.trim() || editMenu.tags.length >= 10}
+                    className="btn-primary px-4"
+                  >
+                    Add
+                  </button>
+                </div>
+                {editMenu.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {editMenu.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => removeTag(editMenu, setEditMenu, tag)}
+                          className="ml-2 hover:text-blue-600"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">
+                  {editMenu.tags.length}/10 tags (max 30 characters each)
+                </p>
+              </div>
+            </FormField>
+
+            {/* Images */}
+            <FormField label="Images" error={fieldErrors.images}>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={newImage}
+                    onChange={(e) => setNewImage(e.target.value)}
+                    className="form-input flex-1"
+                    placeholder="https://example.com/image.jpg"
+                    onKeyPress={(e) =>
+                      e.key === "Enter" && addImage(editMenu, setEditMenu)
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addImage(editMenu, setEditMenu)}
+                    disabled={!newImage.trim() || editMenu.images.length >= 5}
+                    className="btn-primary px-4"
+                  >
+                    Add
+                  </button>
+                </div>
+                {editMenu.images.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {editMenu.images.map((image, index) => (
+                      <div
+                        key={index}
+                        className="relative group border rounded-lg p-2 bg-gray-50"
+                      >
+                        <img
+                          src={image}
+                          alt={`Menu image ${index + 1}`}
+                          className="w-full h-16 object-cover rounded"
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                            e.target.nextSibling.style.display = "flex";
+                          }}
+                        />
+                        <div className="hidden w-full h-16 bg-gray-200 rounded items-center justify-center text-gray-500 text-sm">
+                          Invalid image
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            removeImage(editMenu, setEditMenu, image)
+                          }
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">
+                  {editMenu.images.length}/5 images
+                </p>
+              </div>
+            </FormField>
+
+            {/* Menu Items Selection */}
+            <FormField label="Menu Items" error={fieldErrors.items}>
+              <div className="space-y-4">
+                {/* Add Item Dropdown */}
+                <div className="flex gap-2">
+                  <select
+                    className="form-select flex-1"
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        addItemToMenu(editMenu, setEditMenu, e.target.value);
+                        e.target.value = "";
+                      }
+                    }}
+                    disabled={itemsLoading || editMenu.items.length >= 20}
+                  >
+                    <option value="">
+                      {itemsLoading
+                        ? "Loading items..."
+                        : "Select an item to add"}
+                    </option>
+                    {availableItems
+                      .filter(
+                        (item) =>
+                          !editMenu.items.find((mi) => mi.itemId === item.id)
+                      )
+                      .map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} - ${item.price?.toFixed(2)}
+                        </option>
+                      ))}
+                  </select>
+                  <div className="text-sm text-gray-500 self-center">
+                    {editMenu.items.length}/20
+                  </div>
+                </div>
+
+                {/* Selected Items List */}
+                {editMenu.items.length > 0 && (
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <h4 className="font-medium text-gray-900">
+                      Selected Items
+                    </h4>
+                    {editMenu.items.map((menuItem, index) => (
+                      <div
+                        key={menuItem.itemId}
+                        className="bg-gray-50 rounded-lg p-3"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-medium text-gray-900">
+                            {getItemName(menuItem.itemId)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              removeItemFromMenu(
+                                editMenu,
+                                setEditMenu,
+                                menuItem.itemId
+                              )
+                            }
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Quantity
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={menuItem.quantity}
+                              onChange={(e) =>
+                                updateMenuItem(
+                                  editMenu,
+                                  setEditMenu,
+                                  menuItem.itemId,
+                                  "quantity",
+                                  e.target.value
+                                )
+                              }
+                              className="form-input text-sm"
+                            />
+                            {fieldErrors[`items.${index}.quantity`] && (
+                              <p className="text-xs text-red-600 mt-1">
+                                {fieldErrors[`items.${index}.quantity`]}
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Extra Price ($)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max="100"
+                              value={menuItem.extraPrice}
+                              onChange={(e) =>
+                                updateMenuItem(
+                                  editMenu,
+                                  setEditMenu,
+                                  menuItem.itemId,
+                                  "extraPrice",
+                                  e.target.value
+                                )
+                              }
+                              className="form-input text-sm"
+                            />
+                            {fieldErrors[`items.${index}.extraPrice`] && (
+                              <p className="text-xs text-red-600 mt-1">
+                                {fieldErrors[`items.${index}.extraPrice`]}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex items-end">
+                            <label className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={menuItem.isOptional}
+                                onChange={(e) =>
+                                  updateMenuItem(
+                                    editMenu,
+                                    setEditMenu,
+                                    menuItem.itemId,
+                                    "isOptional",
+                                    e.target.checked
+                                  )
+                                }
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="ml-2 text-xs text-gray-700">
+                                Optional
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {editMenu.items.length === 0 && (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    No items selected. Add items to create a complete menu.
                   </p>
-                  <p>
-                    <strong>Categories:</strong>{" "}
-                    {selectedMenu.categories.join(", ") || "None"}
-                  </p>
-                  <p>
-                    <strong>Last Updated:</strong> {selectedMenu.lastUpdated}
-                  </p>
+                )}
+              </div>
+            </FormField>
+
+            {/* Menu Stats */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">
+                Menu Statistics
+              </h4>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-600">Items:</span>
+                  <span className="ml-1 font-medium">
+                    {selectedMenu.items?.length || 0}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Images:</span>
+                  <span className="ml-1 font-medium">
+                    {selectedMenu.images?.length || 0}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Created:</span>
+                  <span className="ml-1 font-medium">
+                    {formatDate(selectedMenu.createdAt)}
+                  </span>
                 </div>
               </div>
             </div>
-
-            <div className="mt-6 flex space-x-3">
-              <button
-                onClick={() => setSelectedMenu(null)}
-                className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
-                Save Changes
-              </button>
-            </div>
           </div>
-        </div>
+
+          {/* Error Display */}
+          <FormError createError={createError} fieldErrors={fieldErrors} />
+
+          {/* Action Buttons */}
+          <div className="mt-8 flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={closeEditModal}
+              disabled={actionLoading}
+              className="btn-secondary flex-1"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleUpdateMenu}
+              disabled={
+                actionLoading || !editMenu.name.trim() || !editMenu.price
+              }
+              className="btn-primary flex-1"
+            >
+              {actionLoading ? (
+                <>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Updating...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </button>
+          </div>
+        </ModalWrapper>
       )}
     </div>
   );

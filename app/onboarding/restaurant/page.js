@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { restaurantAPI, getToken } from "@/libs/api";
 import Cookies from "js-cookie";
-import { MapPin, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function RestaurantOnboarding() {
   const router = useRouter();

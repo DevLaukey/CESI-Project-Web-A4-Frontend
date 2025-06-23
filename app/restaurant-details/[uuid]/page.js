@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -17,25 +17,29 @@ import {
   Info,
   Check,
   X,
-  Filter,
   Search,
+  AlertCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { customerAPI } from "@/libs/api";
+import { CartContext } from "@/components/AppContext";
+import FloatingCart from "@/components/layout/FloatingCart"; 
 
 function RestaurantDetailPage() {
   const router = useRouter();
   const params = useParams();
   const restaurantUuid = params.uuid;
 
+  const { addToCart } = useContext(CartContext); // Use cart context
+
   const [restaurant, setRestaurant] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [itemsLoading, setItemsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [cart, setCart] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showCart, setShowCart] = useState(false);
+  const [dismissedWarning, setDismissedWarning] = useState(false);
 
   const menuCategories = [
     { name: "All", emoji: "🍽️" },
@@ -45,6 +49,7 @@ function RestaurantDetailPage() {
     { name: "Pasta", emoji: "🍝" },
     { name: "Desserts", emoji: "🧁" },
     { name: "Beverages", emoji: "🥤" },
+    { name: "Appetizers & Starters", emoji: "🥗" },
   ];
 
   useEffect(() => {
@@ -52,7 +57,6 @@ function RestaurantDetailPage() {
       fetchRestaurantDetails();
       fetchMenuItems();
       loadFavoriteStatus();
-      loadCart();
     }
   }, [restaurantUuid]);
 
@@ -61,14 +65,26 @@ function RestaurantDetailPage() {
       setLoading(true);
       console.log("Fetching restaurant details for:", restaurantUuid);
 
-      // Assuming you have an API endpoint to get restaurant by UUID
       const response = await customerAPI.getRestaurantById(restaurantUuid);
       console.log("Restaurant details:", response);
 
-      setRestaurant(response);
+      let restaurantData = null;
+      if (response.success && response.restaurant) {
+        restaurantData = response.restaurant;
+      } else if (response.uuid) {
+        restaurantData = response;
+      }
+
+      if (!restaurantData || !restaurantData.uuid) {
+        console.log("Invalid restaurant data");
+        setRestaurant(null);
+        return;
+      }
+
+      setRestaurant(restaurantData);
     } catch (error) {
       console.error("Error fetching restaurant details:", error);
-      // You might want to show an error page or redirect
+      setRestaurant(null);
     } finally {
       setLoading(false);
     }
@@ -79,23 +95,46 @@ function RestaurantDetailPage() {
       setItemsLoading(true);
       console.log("Fetching menu items for:", restaurantUuid);
 
-      // Assuming you have an API endpoint to get menu items by restaurant UUID
-      const response = await customerAPI.getMenuItems(restaurantUuid);
-      console.log("Menu items:", response);
+      try {
+        const response = await customerAPI.getMenuItems(restaurantUuid);
+        console.log("Menu items:", response);
 
-      let itemsData = [];
-      if (Array.isArray(response)) {
-        itemsData = response;
-      } else if (response.items && Array.isArray(response.items)) {
-        itemsData = response.items;
-      } else if (response.data && Array.isArray(response.data)) {
-        itemsData = response.data;
+        let itemsData = [];
+        if (Array.isArray(response)) {
+          itemsData = response;
+        } else if (response.items && Array.isArray(response.items)) {
+          itemsData = response.items;
+        } else if (response.data && Array.isArray(response.data)) {
+          itemsData = response.data;
+        }
+
+        const transformedItems = itemsData.map((item) => ({
+          ...item,
+          basePrice: parseFloat(item.price) || 0,
+          price: parseFloat(item.price) || 0,
+          category: item.category?.name || "Uncategorized",
+          image: item.images && item.images.length > 0 ? item.images[0] : null,
+        }));
+
+        setMenuItems(transformedItems);
+      } catch (apiError) {
+        console.log("API call for menu items failed:", apiError);
+        if (restaurant && restaurant.items) {
+          const transformedItems = restaurant.items.map((item) => ({
+            ...item,
+            basePrice: parseFloat(item.price) || 0,
+            price: parseFloat(item.price) || 0,
+            category: item.category?.name || "Uncategorized",
+            image:
+              item.images && item.images.length > 0 ? item.images[0] : null,
+          }));
+          setMenuItems(transformedItems);
+        } else {
+          setSampleMenuItems();
+        }
       }
-
-      setMenuItems(itemsData);
     } catch (error) {
       console.error("Error fetching menu items:", error);
-      // For demo purposes, let's add some sample items
       setSampleMenuItems();
     } finally {
       setItemsLoading(false);
@@ -110,6 +149,7 @@ function RestaurantDetailPage() {
         name: "Margherita Pizza",
         description: "Fresh tomato sauce, mozzarella cheese, basil leaves",
         price: 14.99,
+        basePrice: 14.99,
         category: "Pizza",
         image:
           "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400&h=300&fit=crop",
@@ -126,6 +166,7 @@ function RestaurantDetailPage() {
         name: "Chicken Alfredo Pasta",
         description: "Creamy alfredo sauce with grilled chicken and parmesan",
         price: 18.5,
+        basePrice: 18.5,
         category: "Pasta",
         image:
           "https://images.unsplash.com/photo-1621996346565-e3dbc353d2e5?w=400&h=300&fit=crop",
@@ -133,39 +174,6 @@ function RestaurantDetailPage() {
         preparationTime: 20,
         allergens: ["Gluten", "Dairy"],
         isVegetarian: false,
-        isVegan: false,
-        spicyLevel: 0,
-      },
-      {
-        id: 3,
-        uuid: "item-3",
-        name: "Caesar Salad",
-        description:
-          "Crisp romaine lettuce, croutons, parmesan, caesar dressing",
-        price: 12.99,
-        category: "Appetizers",
-        image:
-          "https://images.unsplash.com/photo-1551248429-40975aa4de74?w=400&h=300&fit=crop",
-        isAvailable: true,
-        preparationTime: 10,
-        allergens: ["Dairy", "Eggs"],
-        isVegetarian: true,
-        isVegan: false,
-        spicyLevel: 0,
-      },
-      {
-        id: 4,
-        uuid: "item-4",
-        name: "Tiramisu",
-        description: "Classic Italian dessert with coffee and mascarpone",
-        price: 8.99,
-        category: "Desserts",
-        image:
-          "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&h=300&fit=crop",
-        isAvailable: true,
-        preparationTime: 5,
-        allergens: ["Dairy", "Eggs", "Gluten"],
-        isVegetarian: true,
         isVegan: false,
         spicyLevel: 0,
       },
@@ -181,25 +189,6 @@ function RestaurantDetailPage() {
       setIsFavorite(favorites.includes(restaurantUuid));
     } catch (error) {
       console.error("Error loading favorite status:", error);
-    }
-  };
-
-  const loadCart = () => {
-    try {
-      const savedCart = JSON.parse(
-        sessionStorage.getItem(`cart_${restaurantUuid}`) || "[]"
-      );
-      setCart(savedCart);
-    } catch (error) {
-      console.error("Error loading cart:", error);
-    }
-  };
-
-  const saveCart = (newCart) => {
-    try {
-      sessionStorage.setItem(`cart_${restaurantUuid}`, JSON.stringify(newCart));
-    } catch (error) {
-      console.error("Error saving cart:", error);
     }
   };
 
@@ -226,53 +215,13 @@ function RestaurantDetailPage() {
     }
   };
 
-  const addToCart = (item) => {
-    const existingItem = cart.find((cartItem) => cartItem.uuid === item.uuid);
-    let newCart;
+  const handleAddToCart = (item) => {
+    const cartItem = {
+      ...item,
+      basePrice: item.basePrice || item.price,
+    };
 
-    if (existingItem) {
-      newCart = cart.map((cartItem) =>
-        cartItem.uuid === item.uuid
-          ? { ...cartItem, quantity: cartItem.quantity + 1 }
-          : cartItem
-      );
-    } else {
-      newCart = [...cart, { ...item, quantity: 1 }];
-    }
-
-    setCart(newCart);
-    saveCart(newCart);
-  };
-
-  const removeFromCart = (itemUuid) => {
-    const existingItem = cart.find((cartItem) => cartItem.uuid === itemUuid);
-    let newCart;
-
-    if (existingItem && existingItem.quantity > 1) {
-      newCart = cart.map((cartItem) =>
-        cartItem.uuid === itemUuid
-          ? { ...cartItem, quantity: cartItem.quantity - 1 }
-          : cartItem
-      );
-    } else {
-      newCart = cart.filter((cartItem) => cartItem.uuid !== itemUuid);
-    }
-
-    setCart(newCart);
-    saveCart(newCart);
-  };
-
-  const getCartQuantity = (itemUuid) => {
-    const item = cart.find((cartItem) => cartItem.uuid === itemUuid);
-    return item ? item.quantity : 0;
-  };
-
-  const getCartTotal = () => {
-    return cart.reduce((total, item) => total + item.price * item.quantity, 0);
-  };
-
-  const getTotalItems = () => {
-    return cart.reduce((total, item) => total + item.quantity, 0);
+    addToCart(cartItem, null, []); // No size or extras for now
   };
 
   // Filter menu items
@@ -292,13 +241,33 @@ function RestaurantDetailPage() {
   // Helper functions
   const isRestaurantOpen = () => {
     if (!restaurant) return false;
-    if (restaurant.isOpenNow !== undefined) return restaurant.isOpenNow;
+
+    if (restaurant.isOpenNow !== undefined) {
+      return restaurant.isOpenNow;
+    }
+
+    if (restaurant.isOpen !== undefined) {
+      return restaurant.isOpen;
+    }
 
     const now = new Date();
     const currentDay = now.getDay();
     const currentTime = now.getHours() * 100 + now.getMinutes();
 
     const todayHours = restaurant.openingHours?.[currentDay];
+    if (!todayHours || todayHours.isClosed) return false;
+
+    return currentTime >= todayHours.open && currentTime <= todayHours.close;
+  };
+
+  const shouldBeOpenByHours = () => {
+    if (!restaurant || !restaurant.openingHours) return false;
+
+    const now = new Date();
+    const currentDay = now.getDay();
+    const currentTime = now.getHours() * 100 + now.getMinutes();
+
+    const todayHours = restaurant.openingHours[currentDay];
     if (!todayHours || todayHours.isClosed) return false;
 
     return currentTime >= todayHours.open && currentTime <= todayHours.close;
@@ -341,7 +310,8 @@ function RestaurantDetailPage() {
             Restaurant not found
           </h2>
           <p className="text-gray-600 mb-4">
-            The restaurant you're looking for doesn't exist.
+            The restaurant you're looking for doesn't exist or couldn't be
+            loaded.
           </p>
           <button
             onClick={() => router.back()}
@@ -355,9 +325,60 @@ function RestaurantDetailPage() {
   }
 
   const isOpen = isRestaurantOpen();
+  const shouldBeOpen = shouldBeOpenByHours();
+  const showStatusWarning = !isOpen && shouldBeOpen && !dismissedWarning;
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Status Warning Cards */}
+      {showStatusWarning && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 sticky top-0 z-50 shadow-sm">
+          <div className="max-w-7xl mx-auto flex items-start">
+            <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5 mr-3 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-yellow-800">
+                Restaurant Status Notice
+              </h3>
+              <p className="text-sm text-yellow-700 mt-1">
+                This restaurant appears to be closed according to our system,
+                but based on their opening hours, it should be open right now.
+                You can browse the menu, but ordering might be temporarily
+                unavailable.
+              </p>
+            </div>
+            <button
+              onClick={() => setDismissedWarning(true)}
+              className="ml-3 flex-shrink-0 text-yellow-600 hover:text-yellow-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!isOpen && !showStatusWarning && !dismissedWarning && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 sticky top-0 z-50 shadow-sm">
+          <div className="max-w-7xl mx-auto flex items-start">
+            <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 mr-3 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-red-800">
+                Restaurant Currently Closed
+              </h3>
+              <p className="text-sm text-red-700 mt-1">
+                {restaurant.name} is currently closed. You can browse the menu
+                but cannot place orders at this time.
+              </p>
+            </div>
+            <button
+              onClick={() => setDismissedWarning(true)}
+              className="ml-3 flex-shrink-0 text-red-600 hover:text-red-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header Image */}
       <div className="relative h-64 sm:h-80 lg:h-96">
         <img
@@ -370,10 +391,8 @@ function RestaurantDetailPage() {
           }}
         />
 
-        {/* Overlay */}
         <div className="absolute inset-0 bg-black bg-opacity-20"></div>
 
-        {/* Back Button */}
         <button
           onClick={() => router.back()}
           className="absolute top-4 left-4 p-2 bg-white/90 rounded-full hover:bg-white transition-colors z-10"
@@ -381,7 +400,6 @@ function RestaurantDetailPage() {
           <ArrowLeft className="w-5 h-5 text-gray-700" />
         </button>
 
-        {/* Action Buttons */}
         <div className="absolute top-4 right-4 flex space-x-2 z-10">
           <button
             onClick={toggleFavorite}
@@ -515,7 +533,6 @@ function RestaurantDetailPage() {
 
       {/* Menu Section */}
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Search and Categories */}
         <div className="mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">
             Menu
@@ -566,123 +583,114 @@ function RestaurantDetailPage() {
           </div>
         ) : filteredMenuItems.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredMenuItems.map((item) => {
-              const quantity = getCartQuantity(item.uuid);
+            {filteredMenuItems.map((item) => (
+              <div
+                key={item.uuid}
+                className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+              >
+                <div className="relative">
+                  <img
+                    src={
+                      item.image ||
+                      "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop"
+                    }
+                    alt={item.name}
+                    className="w-full h-48 object-cover"
+                    onError={(e) => {
+                      e.target.src =
+                        "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop";
+                    }}
+                  />
 
-              return (
-                <div
-                  key={item.uuid}
-                  className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                >
-                  <div className="relative">
-                    <img
-                      src={
-                        item.image ||
-                        "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop"
-                      }
-                      alt={item.name}
-                      className="w-full h-48 object-cover"
-                      onError={(e) => {
-                        e.target.src =
-                          "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop";
-                      }}
-                    />
-
-                    {/* Dietary Badges */}
-                    <div className="absolute top-2 left-2 flex space-x-1">
-                      {item.isVegetarian && (
-                        <span className="bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">
-                          🌱 Veg
-                        </span>
-                      )}
-                      {item.isVegan && (
-                        <span className="bg-green-600 text-white px-2 py-1 rounded text-xs font-medium">
-                          🌿 Vegan
-                        </span>
-                      )}
-                      {item.spicyLevel > 0 && (
-                        <span className="bg-red-500 text-white px-2 py-1 rounded text-xs font-medium">
-                          {"🌶️".repeat(item.spicyLevel)}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Preparation Time */}
-                    {item.preparationTime && (
-                      <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
-                        <Clock className="w-3 h-3 inline mr-1" />
-                        {item.preparationTime} min
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-bold text-lg text-gray-900 flex-1 mr-2">
-                        {item.name}
-                      </h3>
-                      <span className="font-bold text-lg text-green-600">
-                        €{item.price.toFixed(2)}
+                  {/* Dietary Badges */}
+                  <div className="absolute top-2 left-2 flex space-x-1">
+                    {item.isVegetarian && (
+                      <span className="bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">
+                        🌱 Veg
                       </span>
-                    </div>
-
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                      {item.description}
-                    </p>
-
-                    {/* Allergens */}
-                    {item.allergens && item.allergens.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        {item.allergens.map((allergen, index) => (
-                          <span
-                            key={index}
-                            className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs"
-                          >
-                            {allergen}
-                          </span>
-                        ))}
-                      </div>
                     )}
+                    {item.isVegan && (
+                      <span className="bg-green-600 text-white px-2 py-1 rounded text-xs font-medium">
+                        🌿 Vegan
+                      </span>
+                    )}
+                    {item.spicyLevel > 0 && (
+                      <span className="bg-red-500 text-white px-2 py-1 rounded text-xs font-medium">
+                        {"🌶️".repeat(item.spicyLevel)}
+                      </span>
+                    )}
+                    {item.isSpicy && (
+                      <span className="bg-red-500 text-white px-2 py-1 rounded text-xs font-medium">
+                        🌶️ Spicy
+                      </span>
+                    )}
+                  </div>
 
-                    {/* Add to Cart Controls */}
-                    <div className="flex items-center justify-between">
-                      {quantity === 0 ? (
-                        <button
-                          onClick={() => addToCart(item)}
-                          disabled={!isOpen}
-                          className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                            isOpen
-                              ? "bg-black text-white hover:bg-gray-800"
-                              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          }`}
-                        >
-                          <Plus className="w-4 h-4" />
-                          <span>Add to Cart</span>
-                        </button>
-                      ) : (
-                        <div className="flex items-center space-x-3">
-                          <button
-                            onClick={() => removeFromCart(item.uuid)}
-                            className="p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <span className="font-medium text-lg min-w-[2rem] text-center">
-                            {quantity}
-                          </span>
-                          <button
-                            onClick={() => addToCart(item)}
-                            className="p-2 bg-black text-white hover:bg-gray-800 rounded-lg transition-colors"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
+                  {/* Preparation Time */}
+                  {item.preparationTime && (
+                    <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
+                      <Clock className="w-3 h-3 inline mr-1" />
+                      {item.preparationTime} min
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-bold text-lg text-gray-900 flex-1 mr-2">
+                      {item.name}
+                    </h3>
+                    <div className="text-right">
+                      <span className="font-bold text-lg text-green-600">
+                        €{(item.basePrice || item.price).toFixed(2)}
+                      </span>
+                      {item.originalPrice &&
+                        parseFloat(item.originalPrice) >
+                          parseFloat(item.price) && (
+                          <div className="text-sm text-gray-400 line-through">
+                            €{parseFloat(item.originalPrice).toFixed(2)}
+                          </div>
+                        )}
                     </div>
                   </div>
+
+                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                    {item.description}
+                  </p>
+
+                  {/* Allergens */}
+                  {item.allergens && item.allergens.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {item.allergens.map((allergen, index) => (
+                        <span
+                          key={index}
+                          className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs capitalize"
+                        >
+                          {allergen}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add to Cart Button */}
+                  <button
+                    onClick={() => handleAddToCart(item)}
+                    disabled={!isOpen}
+                    className={`w-full flex items-center justify-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      isOpen
+                        ? "bg-black text-white hover:bg-gray-800"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    }`}
+                    title={
+                      !isOpen ? "Restaurant is currently closed" : "Add to cart"
+                    }
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add to Cart</span>
+                  </button>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         ) : (
           <div className="text-center py-12">
@@ -699,156 +707,8 @@ function RestaurantDetailPage() {
         )}
       </div>
 
-      {/* Floating Cart Button */}
-      {cart.length > 0 && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <button
-            onClick={() => setShowCart(true)}
-            className="bg-black text-white px-6 py-4 rounded-full shadow-lg hover:bg-gray-800 transition-colors flex items-center space-x-3"
-          >
-            <ShoppingCart className="w-5 h-5" />
-            <span className="font-medium">
-              {getTotalItems()} items • €{getCartTotal().toFixed(2)}
-            </span>
-          </button>
-        </div>
-      )}
-
-      {/* Cart Modal/Sidebar */}
-      {showCart && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end">
-          <div className="bg-white w-full max-w-md h-full overflow-y-auto">
-            <div className="p-4 border-b sticky top-0 bg-white">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold">Your Order</h3>
-                <button
-                  onClick={() => setShowCart(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-4">
-              {cart.map((item) => (
-                <div
-                  key={item.uuid}
-                  className="flex items-center space-x-3 py-3 border-b"
-                >
-                  <img
-                    src={
-                      item.image ||
-                      "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=100&h=100&fit=crop"
-                    }
-                    alt={item.name}
-                    className="w-12 h-12 object-cover rounded"
-                  />
-                  <div className="flex-1">
-                    <h4 className="font-medium text-sm">{item.name}</h4>
-                    <p className="text-gray-600 text-xs">
-                      €{item.price.toFixed(2)} each
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => removeFromCart(item.uuid)}
-                      className="p-1 bg-gray-200 hover:bg-gray-300 rounded"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className="font-medium text-sm min-w-[1.5rem] text-center">
-                      {item.quantity}
-                    </span>
-                    <button
-                      onClick={() => addToCart(item)}
-                      className="p-1 bg-black text-white hover:bg-gray-800 rounded"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              <div className="mt-6 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Subtotal</span>
-                  <span>€{getCartTotal().toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Delivery fee</span>
-                  <span>€{parseFloat(restaurant.deliveryFee).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                  <span>Total</span>
-                  <span>
-                    €
-                    {(
-                      getCartTotal() + parseFloat(restaurant.deliveryFee)
-                    ).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  // Handle checkout logic here
-                  console.log("Proceeding to checkout with cart:", cart);
-                  // You can redirect to checkout page or open checkout modal
-                  // router.push('/checkout');
-                }}
-                disabled={
-                  getCartTotal() < parseFloat(restaurant.minimumOrder || 0)
-                }
-                className={`w-full mt-6 py-3 px-4 rounded-lg font-medium transition-colors ${
-                  getCartTotal() >= parseFloat(restaurant.minimumOrder || 0)
-                    ? "bg-black text-white hover:bg-gray-800"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                }`}
-              >
-                {getCartTotal() < parseFloat(restaurant.minimumOrder || 0)
-                  ? `Minimum order €${parseFloat(
-                      restaurant.minimumOrder
-                    ).toFixed(2)}`
-                  : "Proceed to Checkout"}
-              </button>
-
-              {restaurant.minimumOrder &&
-                getCartTotal() < parseFloat(restaurant.minimumOrder) && (
-                  <p className="text-sm text-red-600 mt-2 text-center">
-                    Add €
-                    {(
-                      parseFloat(restaurant.minimumOrder) - getCartTotal()
-                    ).toFixed(2)}{" "}
-                    more to reach minimum order
-                  </p>
-                )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Restaurant closed overlay */}
-      {!isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full text-center">
-            <div className="text-4xl mb-4">🕐</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
-              Restaurant Closed
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {restaurant.name} is currently closed. You can browse the menu but
-              cannot place orders at this time.
-            </p>
-            <button
-              onClick={() => router.back()}
-              className="bg-black text-white px-6 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors"
-            >
-              Go Back
-            </button>
-          </div>
-        </div>
-      )}
+      {/* FloatingCart Component - Pass restaurant data for better functionality */}
+      <FloatingCart restaurant={restaurant} />
     </div>
   );
 }

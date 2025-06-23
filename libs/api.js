@@ -1,5 +1,6 @@
 import { createRestaurantData } from "@/types/restaurant";
 import Cookies from "js-cookie";
+import { get } from "mongoose";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL_USER;
 const API_BASE_URL_RESTAURANT = process.env.NEXT_PUBLIC_API_URL_RESTAURANT;
@@ -86,6 +87,7 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
       },
       response
     );
+
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -309,7 +311,9 @@ export const authAPI = {
 
 // Restaurant API calls
 export const restaurantAPI = {
+
   // Create restaurant data onboarding
+
   createRestaurantData: (profileData) =>
     apiCall(
       "/api/restaurants",
@@ -339,16 +343,22 @@ export const restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
-  getMenu: () => apiCall("/api/restaurant/menu", {}, API_BASE_URL_RESTAURANT),
-  addMenuItem: (item) =>
+  getCategories: () => apiCall("/api/categories", {}, API_BASE_URL_RESTAURANT),
+  getItems: () =>
+    apiCall("/api/items/owner/restaurant", {}, API_BASE_URL_RESTAURANT),
+
+  getMenus: () =>
+    apiCall("/api/menus/owner/restaurant", {}, API_BASE_URL_RESTAURANT),
+  createMenu: (item) =>
     apiCall(
-      "/api/items",
+      "/api/menus",
       {
         method: "POST",
         body: JSON.stringify(item),
       },
       API_BASE_URL_RESTAURANT
     ),
+
   getMenuItem: (itemId) =>
     apiCall(
       "/api/items/owner/restaurant",
@@ -357,6 +367,10 @@ export const restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
+
+  getMenuItems: () =>
+    apiCall("/api/items/owner/restaurant", {}, API_BASE_URL_RESTAURANT),
+
   updateMenuItem: (itemId, item) =>
     apiCall(
       `/api/items/${itemId}`,
@@ -394,6 +408,27 @@ export const restaurantAPI = {
       API_BASE_URL_RESTAURANT
     );
   },
+
+  toggleRestaurantStatus: (isOpen) =>
+    apiCall(
+      `/api/restaurants/owner/me`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          isOpen,
+        }),
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+
+  deleteMenu: (menuId) =>
+    apiCall(
+      `/api/menus/${menuId}`,
+      {
+        method: "DELETE",
+      },
+      API_BASE_URL_RESTAURANT
+    ),
 };
 
 // Driver API calls
@@ -440,6 +475,7 @@ export const driverAPI = {
 
 // Customer API calls
 export const customerAPI = {
+
   getRestaurants: () =>
     apiCall("/api/restaurants", {}, API_BASE_URL_RESTAURANT),
   searchRestaurants: (queryParams) => {
@@ -471,15 +507,8 @@ export const customerAPI = {
       API_BASE_URL
     ),
   getRestaurantById: async (restaurantId) => {
-    apiCall(`/api/restaurants/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
-  },
-  getMenuItems: async (restaurantId) => {
-    return apiCall(
-      `/api/menus/restaurant/${restaurantId}`,
-      {},
-      API_BASE_URL_RESTAURANT
-    );
-  },
+    return apiCall(`/api/restaurants/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+  }
 };
 
 // Referral API calls
