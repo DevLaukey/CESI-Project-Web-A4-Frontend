@@ -314,7 +314,6 @@ export const authAPI = {
 export const restaurantAPI = {
 
   // Create restaurant data onboarding
-
   createRestaurantData: (profileData) =>
     apiCall(
       "/api/restaurants",
@@ -434,6 +433,11 @@ export const restaurantAPI = {
 
 // Driver API calls
 export const driverAPI = {
+  createDriverProfile: (profileData) =>
+    apiCall("/api/driver/profile", {
+      method: "POST",
+      body: JSON.stringify(profileData),
+    }, API_BASE_URL_DRIVER),
   getAvailableDeliveries: () =>
     apiCall("/api/driver/deliveries/available", {}, API_BASE_URL_DRIVER),
   acceptDelivery: (deliveryId) =>
