@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -15,9 +15,12 @@ import {
   Mail,
 } from "lucide-react";
 import { customerAPI } from "@/libs/api";
+import { CartContext } from "@/components/AppContext";
+import FloatingCart from "@/components/layout/FloatingCart"; 
 
 function BrowseRestaurants() {
   const router = useRouter();
+  const { cartProducts } = useContext(CartContext);
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -44,6 +47,9 @@ function BrowseRestaurants() {
     { name: "Bubble Tea", emoji: "🧋" },
     { name: "Korean", emoji: "🥟" },
     { name: "Halal", emoji: "🥘" },
+    { name: "American", emoji: "🇺🇸" },
+    { name: "Japanese", emoji: "🍱" },
+    { name: "Turkish", emoji: "🇹🇷" },
   ];
 
   useEffect(() => {
@@ -54,13 +60,11 @@ function BrowseRestaurants() {
 
   const loadUserLocation = () => {
     try {
-      // Try to get stored location first
       const storedLocation = sessionStorage.getItem("userLocation");
       if (storedLocation) {
         const locationData = JSON.parse(storedLocation);
         setUserLocation(locationData);
       } else {
-        // Fallback to default location
         setUserLocation({
           formattedAddress: "Paris, France",
           city: "Paris",
@@ -144,10 +148,13 @@ function BrowseRestaurants() {
       return restaurant.isOpenNow;
     }
 
-    // If no explicit isOpenNow, check opening hours
+    if (restaurant.isOpen !== undefined) {
+      return restaurant.isOpen;
+    }
+
     const now = new Date();
-    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const currentTime = now.getHours() * 100 + now.getMinutes(); // Convert to HHMM format
+    const currentDay = now.getDay();
+    const currentTime = now.getHours() * 100 + now.getMinutes();
 
     const todayHours = restaurant.openingHours?.[currentDay];
     if (!todayHours) return false;
@@ -169,14 +176,20 @@ function BrowseRestaurants() {
     if (restaurant.bannerImage) return restaurant.bannerImage;
     if (restaurant.profileImage) return restaurant.profileImage;
 
-    // Default images based on cuisine type
     switch (restaurant.cuisineType?.toLowerCase()) {
       case "italian":
         return "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop";
       case "french":
         return "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300&fit=crop";
       case "asian":
+      case "japanese":
         return "https://images.unsplash.com/photo-1617093727343-374698b1b08d?w=400&h=300&fit=crop";
+      case "indian":
+        return "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&h=300&fit=crop";
+      case "american":
+        return "https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=400&h=300&fit=crop";
+      case "turkish":
+        return "https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=400&h=300&fit=crop";
       default:
         return "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400&h=300&fit=crop";
     }
@@ -226,7 +239,7 @@ function BrowseRestaurants() {
   };
 
   const clearFilters = () => {
-    setSearchQuery(""); 
+    setSearchQuery("");
     setSelectedCategory("All");
     setFilters({ minRating: null });
   };
@@ -285,11 +298,6 @@ function BrowseRestaurants() {
               <button className="p-2 hover:bg-gray-100 rounded-full">
                 <Search className="w-5 h-5 text-gray-600" />
               </button>
-              <div className="relative">
-                <button className="bg-black text-white px-3 sm:px-4 py-2 rounded-full text-sm font-medium">
-                  🛒 <span className="hidden sm:inline">0</span>
-                </button>
-              </div>
             </div>
           </div>
 
@@ -545,6 +553,9 @@ function BrowseRestaurants() {
           </div>
         )}
       </div>
+
+      {/* FloatingCart Component - Always visible when cart has items */}
+      <FloatingCart />
     </div>
   );
 }

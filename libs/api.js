@@ -78,12 +78,6 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
       config
     );
 
-    console.log("Response from API:", {
-      url: `${baseUrl}${endpoint}`,
-      status: response.status,
-      headers: response.headers,
-      options: config,
-    }, response);
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -456,10 +450,13 @@ export const customerAPI = {
       API_BASE_URL
     ),
   getRestaurantById: async (restaurantId) => {
-    apiCall(`/api/restaurants/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+    return apiCall(`/api/restaurants/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
   },
   getMenuItems: async (restaurantId) => {
-    return apiCall(`/api/menus/restaurant/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+    return apiCall(`/api/items/restaurant/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+  },
+  getMenu: async (restaurantId) => {
+    return apiCall(`/api/menus/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
   },
 };
 
