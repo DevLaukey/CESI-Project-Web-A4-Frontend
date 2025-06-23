@@ -9,8 +9,6 @@ import RestaurantsAndFeatures from "./RestuarantsAndFeatures";
 export default function HomeMenu() {
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* <RestaurantsAndFeatures /> */}
-
       {/* Registration CTAs Section */}
       <section className="py-20 px-4 bg-gray-900 text-white">
         <div className="max-w-7xl mx-auto">
@@ -25,6 +23,7 @@ export default function HomeMenu() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
+            {/* Become a driver */}
             <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 text-center hover:scale-105 transition-all duration-300 shadow-xl border border-gray-200">
               <div className="w-20 h-20 bg-gradient-to-br from-teal-400 to-teal-500 rounded-2xl overflow-hidden mx-auto mb-6 shadow-lg">
                 <Image
