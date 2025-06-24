@@ -1,4 +1,3 @@
-// middleware.js (in your project root)
 import { NextResponse } from "next/server";
 
 // Define protected routes and their allowed user types

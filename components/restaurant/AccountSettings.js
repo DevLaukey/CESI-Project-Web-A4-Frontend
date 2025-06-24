@@ -1,6 +1,6 @@
-// components/restaurant/AccountSettings.js
 "use client";
 import { useState, useEffect } from 'react';
+import UserProfilePage from '../layout/UserProfilePage';
 
 export default function AccountSettings() {
   const [activeTab, setActiveTab] = useState('restaurant');
@@ -47,10 +47,12 @@ export default function AccountSettings() {
     loginNotifications: true
   });
 
+
   const [profileImage, setProfileImage] = useState(null);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
 
   const tabs = [
+    { id: 'profile', name: 'Profile', icon: '👤' },
     { id: 'restaurant', name: 'Restaurant Info', icon: '🏪' },
     { id: 'hours', name: 'Operating Hours', icon: '⏰' },
     { id: 'business', name: 'Business Settings', icon: '⚙️' },
@@ -678,6 +680,8 @@ export default function AccountSettings() {
             ))}
           </nav>
         </div>
+
+        <UserProfilePage />
 
         {/* Tab Content */}
         <div className="p-6">
