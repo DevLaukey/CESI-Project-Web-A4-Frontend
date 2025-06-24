@@ -303,71 +303,7 @@ export default function DriverDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="md:hidden p-2 rounded-md text-gray-400 hover:text-gray-500"
-              >
-                <Menu className="w-6 h-6" />
-              </button>
-              <h1 className="text-xl font-semibold text-gray-900 ml-2">
-                Driver Dashboard
-              </h1>
-            </div>
-
-            <div className="flex items-center gap-4">
-              {/* Online Status Toggle */}
-              <div className="flex items-center gap-2">
-                <span
-                  className={`text-sm ${
-                    isOnline ? "text-green-600" : "text-gray-500"
-                  }`}
-                >
-                  {isOnline ? "Online" : "Offline"}
-                </span>
-                <button
-                  onClick={toggleOnlineStatus}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    isOnline ? "bg-green-600" : "bg-gray-300"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      isOnline ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Notifications */}
-              <div className="relative">
-                <button className="p-2 text-gray-400 hover:text-gray-500">
-                  <Bell className="w-6 h-6" />
-                  {notifications.length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                      {notifications.length}
-                    </span>
-                  )}
-                </button>
-              </div>
-
-              {/* Profile */}
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-sm font-medium text-gray-700 hidden sm:block">
-                  Driver
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+ 
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

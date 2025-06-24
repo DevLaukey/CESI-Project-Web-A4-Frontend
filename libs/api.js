@@ -385,6 +385,17 @@ export const restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
+  
+  addMenuItem: (item) =>
+    apiCall(
+      "/api/items",
+      {
+        method: "POST",
+        body: JSON.stringify(item),
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+  
   getOrders: () =>
     apiCall("/api/restaurant/orders", {}, API_BASE_URL_RESTAURANT),
   updateOrderStatus: (orderId, status) =>
@@ -408,6 +419,16 @@ export const restaurantAPI = {
       {
         method: "POST",
         body: JSON.stringify(item),
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+
+  addItems: ( items) =>
+    apiCall(
+      `/api/items`,
+      {
+        method: "POST",
+        body: JSON.stringify(items),
       },
       API_BASE_URL_RESTAURANT
     ),

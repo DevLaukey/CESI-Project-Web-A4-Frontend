@@ -8,7 +8,7 @@ import AllergensSelector from "./AllergensSelector";
 import NutritionalInfo from "./NutritionalInfo";
 import ToggleField from "./ToggleField";
 
-export  function CreateItemModal({
+export function CreateItemModal({
   categories,
   categoriesLoaded,
   onClose,

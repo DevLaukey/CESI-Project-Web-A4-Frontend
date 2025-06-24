@@ -5,7 +5,17 @@ export default function ItemDetails({ item }) {
     <div className=" mx-auto  overflow-hidden border border-gray-100">
       {/* Header Section */}
       
-          
+      <div className="bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+  
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{item.name}</h1>
+            <p className="text-sm text-gray-600">
+              {item.category ? item.category.name : "Uncategorized"}
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Main Content */}
       <div className="p-6 space-y-6">
@@ -16,9 +26,7 @@ export default function ItemDetails({ item }) {
 
         {/* Price Section */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <span className="text-green-600 font-bold">€</span>
-            </div>
+         
             <div>
               <p className="text-2xl font-bold text-green-600">€{item.price}</p>
             </div>
@@ -29,7 +37,7 @@ export default function ItemDetails({ item }) {
               <span className="text-blue-600">⏱️</span>
             </div>
             <p className="text-xs text-gray-600">Prep time</p>
-            <p className="text-sm font-semibold text-gray-900">
+            <p className="text-xs font-semibold text-gray-900">
               {item.preparationTime} min
             </p>
           </div>
