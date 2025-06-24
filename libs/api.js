@@ -77,7 +77,6 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
   try {
     const response = await fetch(`${baseUrl}${endpoint}`, config);
 
-
     console.log(
       "Response from API:",
       {
@@ -88,7 +87,6 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
       },
       response
     );
-
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -117,7 +115,6 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
     throw error;
   }
 };
-
 
 // Server-side API call function (for middleware or server components)
 export const serverApiCall = async (endpoint, options = {}, request = null) => {
@@ -317,16 +314,16 @@ export const authAPI = {
         if (token) {
           setAuthData(token, response.user);
         }
-      }   
+      }
       return response;
-    } catch (error) { 
+    } catch (error) {
       console.error("Profile picture update error:", error);
       throw error;
     }
   },
 
-  updatePassword: async (passwordData) =>{
-    try{
+  updatePassword: async (passwordData) => {
+    try {
       const response = await apiCall(
         "/api/users/change-password",
         {
@@ -367,10 +364,8 @@ export const authAPI = {
     ),
 };
 
-
 // Restaurant API calls
 export const restaurantAPI = {
-
   // Create restaurant data onboarding
   createRestaurantData: (profileData) =>
     apiCall(
@@ -551,7 +546,6 @@ export const driverAPI = {
 
 // Customer API calls
 export const customerAPI = {
-
   getRestaurants: () =>
     apiCall("/api/restaurants", {}, API_BASE_URL_RESTAURANT),
   searchRestaurants: (queryParams) => {
@@ -585,16 +579,23 @@ export const customerAPI = {
     ),
 
   getRestaurantById: async (restaurantId) => {
-    return apiCall(`/api/restaurants/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+    return apiCall(
+      `/api/restaurants/${restaurantId}`,
+      {},
+      API_BASE_URL_RESTAURANT
+    );
   },
   getMenuItems: async (restaurantId) => {
-    return apiCall(`/api/items/restaurant/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+    return apiCall(
+      `/api/items/restaurant/${restaurantId}`,
+      {},
+      API_BASE_URL_RESTAURANT
+    );
   },
   getMenu: async (restaurantId) => {
     return apiCall(`/api/menus/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
-  }
+  },
 };
-
 
 // Referral API calls
 export const referralAPI = {

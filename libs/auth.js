@@ -1,7 +1,6 @@
 import { api } from "./api";
 import jwt from "jsonwebtoken";
 
-
 export const auth = {
   // Check if user is authenticated
   isAuthenticated() {
@@ -65,7 +64,6 @@ export const auth = {
     }
   },
 };
-
 
 export function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];

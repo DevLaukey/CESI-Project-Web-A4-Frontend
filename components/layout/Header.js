@@ -32,7 +32,6 @@ import {
 import NotificationBell from "./Notification";
 import { AuthLinks } from "./AuthLinks";
 
-
 export default function Header() {
   const { isAuthenticated, user, userType, userName, logout } = useAuth();
   const { cartProducts } = useContext(CartContext);
@@ -91,7 +90,6 @@ export default function Header() {
         </Link>
 
         <div className="flex gap-2 items-center">
-
           {/* Mobile Cart for customers */}
           {userType === "end_user" && (
             <Link

@@ -65,9 +65,7 @@ export async function middleware(request) {
   // Helper function to get user type from token
   const getUserTypeFromToken = async (token) => {
     try {
-      const secret = new TextEncoder().encode(
-        process.env.JWT_SECRET
-      );
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET);
       const { payload } = await jwtVerify(token, secret);
       return payload.userType || payload.type || "end_user";
     } catch (error) {
