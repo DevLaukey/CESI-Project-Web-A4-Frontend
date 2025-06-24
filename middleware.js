@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { jwtVerify } from "jose";
 
 // Define protected routes and their allowed user types
 const protectedRoutes = {

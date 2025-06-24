@@ -90,7 +90,8 @@ function FloatingCart({ restaurant = null, className = "" }) {
 
       {/* Cart Modal/Sidebar */}
       {showCart && (
-        <div className="fixed inset-0  bg-opacity-20 backdrop-blur-sm z-50 flex justify-end">
+        <div className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm z-50 flex justify-end">
+
           <div className="bg-white w-full max-w-md h-full overflow-y-auto shadow-2xl transform transition-transform duration-300 ease-in-out">
             {/* Header */}
             <div className="p-4 border-b sticky top-0 bg-white z-10 shadow-sm">

@@ -26,6 +26,7 @@ import { CartContext } from "@/components/AppContext";
 import FloatingCart from "@/components/layout/FloatingCart"; 
 import Image from "next/image";
 
+
 function RestaurantDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -275,9 +276,12 @@ function RestaurantDetailPage() {
   };
 
   const getRestaurantImage = () => {
-    if (!restaurant) return "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&h=400&fit=crop";
+
+    if (!restaurant) return "";
+ 
     else
       return (
+
       "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&h=400&fit=crop"
     );
   };
@@ -381,6 +385,8 @@ function RestaurantDetailPage() {
 
       {/* Header Image */}
       <div className="relative h-64 sm:h-80 lg:h-96">
+
+  
         <Image
           src={getRestaurantImage()}
           alt={restaurant.name}
@@ -395,6 +401,7 @@ function RestaurantDetailPage() {
         />
 
         <div className="absolute inset-0  bg-opacity-20"></div>
+
 
         <button
           onClick={() => router.back()}

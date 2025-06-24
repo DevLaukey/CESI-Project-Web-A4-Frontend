@@ -1,29 +1,69 @@
-import {Order} from "@/models/Order";
+// app/api/webhook/route.js
+import { NextRequest, NextResponse } from "next/server";
+import Stripe from "stripe";
 
-const stripe = require('stripe')(process.env.STRIPE_SK);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-export async function POST(req) {
-  const sig = req.headers.get('stripe-signature');
+export async function POST(request) {
+  const body = await request.text();
+  const sig = request.headers.get("stripe-signature");
+
   let event;
 
   try {
-    const reqBuffer = await req.text();
-    const signSecret = process.env.STRIPE_SIGN_SECRET;
-    event = stripe.webhooks.constructEvent(reqBuffer, sig, signSecret);
-  } catch (e) {
-    console.error('stripe error');
-    console.log(e);
-    return Response.json(e, {status: 400});
+    // Verify webhook signature
+    event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+  } catch (err) {
+    console.error("Webhook signature verification failed:", err.message);
+    return NextResponse.json(
+      { error: `Webhook Error: ${err.message}` },
+      { status: 400 }
+    );
   }
 
-  if (event.type === 'checkout.session.completed') {
-    console.log(event);
-    const orderId = event?.data?.object?.metadata?.orderId;
-    const isPaid = event?.data?.object?.payment_status === 'paid';
-    if (isPaid) {
-      await Order.updateOne({_id:orderId}, {paid:true});
-    }
+  console.log("Webhook received:", event.type);
+
+  // Handle the event
+  switch (event.type) {
+    case "payment_intent.succeeded":
+      await handlePaymentSuccess(event.data.object);
+      break;
+    case "payment_intent.payment_failed":
+      await handlePaymentFailure(event.data.object);
+      break;
+    case "charge.dispute.created":
+      await handleDispute(event.data.object);
+      break;
+    default:
+      console.log(`Unhandled event type: ${event.type}`);
   }
 
-  return Response.json('ok', {status: 200});
+  return NextResponse.json({ received: true });
+}
+
+async function handlePaymentSuccess(paymentIntent) {
+  const { orderId } = paymentIntent.metadata;
+
+  // Update order status in database
+  await updateOrderStatus(orderId, "paid");
+
+  // Notify restaurant
+  await notifyRestaurant(orderId);
+
+  // Send confirmation email
+  await sendConfirmationEmail(paymentIntent.metadata.userEmail);
+
+  // Update inventory
+  await updateInventory(orderId);
+}
+
+async function handlePaymentFailure(paymentIntent) {
+  const { orderId } = paymentIntent.metadata;
+
+  // Mark order as failed
+  await updateOrderStatus(orderId, "payment_failed");
+
+  // Notify customer
+  await notifyPaymentFailure(paymentIntent.metadata.userEmail);
 }
