@@ -536,6 +536,9 @@ export const customerAPI = {
   },
   getMenu: async (restaurantId) => {
     return apiCall(`/api/menus/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+  }
+};
+
 
 // Referral API calls
 export const referralAPI = {
