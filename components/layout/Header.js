@@ -34,7 +34,6 @@ import {
 import NotificationBell from "./Notification";
 import { AuthLinks } from "./AuthLinks";
 
-
 export default function Header() {
   const { isAuthenticated, user, userType, userName, logout } = useAuth();
   const { cartProducts } = useContext(CartContext);
@@ -44,6 +43,26 @@ export default function Header() {
   const handleLogout = () => {
     logout();
     router.push("/");
+  };
+
+  // Function to calculate total cart amount
+  const getCartTotal = () => {
+    if (!cartProducts || cartProducts.length === 0) return 0;
+    return cartProducts.reduce((total, product) => {
+      return total + product.price * (product.quantity || 1);
+    }, 0);
+  };
+
+  // Function to generate a temporary order ID (you might want to replace this with actual logic)
+  const generateOrderId = () => {
+    return Date.now().toString();
+  };
+
+  // Function to get cart URL with query parameters
+  const getCartUrl = () => {
+    const orderId = generateOrderId();
+    const amount = getCartTotal().toFixed(2);
+    return `/payments?orderId=${orderId}&amount=${amount}`;
   };
 
   const getBrandName = () => {
@@ -93,11 +112,10 @@ export default function Header() {
         </Link>
 
         <div className="flex gap-2 items-center">
-
           {/* Mobile Cart for customers */}
-          {userType === "end_user" && (
+          {isAuthenticated && userType === "end_user" && (
             <Link
-              href={"/cart"}
+              href={getCartUrl()}
               className="relative p-2 hover:text-yellow-500 transition-colors"
             >
               <ShoppingCart className="w-5 h-5" />
@@ -176,9 +194,9 @@ export default function Header() {
             />
 
             {/* Desktop Cart for customers */}
-            {userType === "end_user" && (
+            {isAuthenticated && userType === "end_user" && (
               <Link
-                href={"/cart"}
+                href={getCartUrl()}
                 className="relative p-2 hover:text-yellow-500 transition-colors"
               >
                 <ShoppingCart className="w-5 h-5" />

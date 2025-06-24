@@ -62,24 +62,20 @@ export default function ItemCard({
         {/* Price badges */}
         <div className="absolute top-2 left-2 flex flex-col gap-1">
           <span className="bg-white bg-opacity-90 px-2 py-1 text-xs font-bold text-gray-900 rounded">
-            ${item.price}
+            €{item.price}
           </span>
           {item.originalPrice && item.originalPrice > item.price && (
             <span className="bg-red-500 bg-opacity-90 px-2 py-1 text-xs font-bold text-white rounded line-through">
-              ${item.originalPrice}
+              €{item.originalPrice}
             </span>
           )}
         </div>
       </div>
 
       <div className="p-4">
-        <ItemsHeader
-          item={item}
-          categoryName={categoryName}
-          onToggleStatus={onToggleStatus}
-        />
+
         <ItemDetails item={item} stockStatus={stockStatus} />
-     
+
         <ItemActions onEdit={onEdit} onDelete={onDelete} />
       </div>
     </div>
