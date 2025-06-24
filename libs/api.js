@@ -77,6 +77,7 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
   try {
     const response = await fetch(`${baseUrl}${endpoint}`, config);
 
+
     console.log(
       "Response from API:",
       {
@@ -310,6 +311,7 @@ export const authAPI = {
     ),
 };
 
+
 // Restaurant API calls
 export const restaurantAPI = {
 
@@ -502,6 +504,7 @@ export const customerAPI = {
       : "/api/restaurants/search";
     return apiCall(endpoint, {}, API_BASE_URL);
   },
+
   getRestaurantMenu: (restaurantId) =>
     apiCall(`/api/restaurants/${restaurantId}/menu`, {}, API_BASE_URL),
   placeOrder: (orderData) =>
@@ -524,10 +527,15 @@ export const customerAPI = {
       },
       API_BASE_URL
     ),
-    getRestaurantById: async (restaurantId) => {
+
+  getRestaurantById: async (restaurantId) => {
     return apiCall(`/api/restaurants/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
-  }
-};
+  },
+  getMenuItems: async (restaurantId) => {
+    return apiCall(`/api/items/restaurant/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+  },
+  getMenu: async (restaurantId) => {
+    return apiCall(`/api/menus/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
 
 // Referral API calls
 export const referralAPI = {
