@@ -445,9 +445,9 @@ export const restaurantAPI = {
   getMenuItems: () =>
     apiCall("/api/items/owner/restaurant", {}, API_BASE_URL_RESTAURANT),
 
-  updateMenuItem: (itemId, item) =>
+  updateMenuItem: (menuUUID, item) =>
     apiCall(
-      `/api/items/${itemId}`,
+      `/api/menus/${menuUUID}`,
       {
         method: "PUT",
         body: JSON.stringify(item),
