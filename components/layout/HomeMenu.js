@@ -39,7 +39,7 @@ export default function HomeMenu() {
               </h3>
               <p className="text-gray-600 mb-8 leading-relaxed">
                 Enjoy flexibility, freedom and competitive earnings by
-                delivering through ST PIZZA. Set your own schedule and earn on
+                delivering through CESI (EATS). Set your own schedule and earn on
                 your terms.
               </p>
               <div className="space-y-4">
@@ -77,7 +77,7 @@ export default function HomeMenu() {
                 Become a Partner
               </h3>
               <p className="text-gray-600 mb-8 leading-relaxed">
-                Grow with ST PIZZA! Our technology and user base can help you
+                Grow with CESI (EATS)! Our technology and user base can help you
                 boost sales and unlock new opportunities for your restaurant.
               </p>
               <div className="space-y-4">

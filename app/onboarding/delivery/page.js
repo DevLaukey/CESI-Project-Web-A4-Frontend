@@ -357,7 +357,6 @@ export default function DriverOnboarding() {
     setError("");
 
     try {
-      // Final validation
       const allErrors = [
         ...validateStep1(),
         ...validateStep2(),
@@ -403,8 +402,7 @@ export default function DriverOnboarding() {
 
       console.log("Submitting driver data:", driverData);
 
-      // This would be your actual API call
-      // const response = await driverAPI.createDriverProfile(driverData);
+      const response = await driverAPI.createDriverProfile(driverData);
 
       // Simulate API call for now
       await new Promise((resolve) => setTimeout(resolve, 2000));

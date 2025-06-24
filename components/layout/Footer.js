@@ -10,7 +10,7 @@ function Footer() {
             {/* Company Info */}
             <div className="space-y-4">
               <h3 className="text-xl font-bold">
-                <span className="text-white">ST PIZZA</span>
+                <span className="text-white">CESI (EATS)</span>
               </h3>
               <p className="text-sm leading-relaxed">
                 <span className="text-white">
@@ -142,7 +142,7 @@ function Footer() {
             <div className="flex flex-col md:flex-row justify-between items-center">
               <div className="text-sm mb-4 md:mb-0">
                 <span className="text-white">
-                  © 2025 ST PIZZA. All rights reserved.
+                  © 2025 CESI (EATS). All rights reserved.
                 </span>
               </div>
               <div className="flex space-x-6 text-sm">
