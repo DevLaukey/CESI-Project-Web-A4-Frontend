@@ -27,6 +27,7 @@ export default function LoginPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
+      console.log(isAuthenticated, authUserType, redirectUrl);
       const destination = redirectUrl || getRedirectUrl(authUserType);
       console.log("User already authenticated, redirecting to:", destination);
       router.push(destination);

@@ -61,7 +61,8 @@ export function AppProvider({ children }) {
   }
 
   return (
-    <CartContext.Provider
+
+      <CartContext.Provider
       value={{
         cartProducts,
         setCartProducts,
@@ -72,5 +73,6 @@ export function AppProvider({ children }) {
     >
       {children}
     </CartContext.Provider>
+    
   );
 }
