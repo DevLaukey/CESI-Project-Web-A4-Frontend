@@ -1,4 +1,3 @@
-// middleware.js (in your project root)
 import { NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 

@@ -60,13 +60,12 @@ export function AppProvider({children}) {
   }
 
   return (
-    <SessionProvider>
+    
       <CartContext.Provider value={{
         cartProducts, setCartProducts,
         addToCart, removeCartProduct, clearCart,
       }}>
         {children}
       </CartContext.Provider>
-    </SessionProvider>
   );
 }

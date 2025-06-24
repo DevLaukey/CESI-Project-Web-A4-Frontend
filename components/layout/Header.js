@@ -4,7 +4,6 @@ import { useAuth } from "@/components/AuthContext";
 import Link from "next/link";
 import { useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import LocationInput from "./LocationInput";
 
 // Lucide React Icons
 import {
@@ -25,7 +24,6 @@ import {
   Heart,
   RotateCcw,
   LogOut,
-  Plus,
   CheckCircle,
   AlertCircle,
   Circle,
