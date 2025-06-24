@@ -139,7 +139,7 @@ export default function RegisterPage() {
       setTimeout(() => {
         switch (userType) {
           case "delivery_driver":
-            router.push("/onboarding/driver");
+            router.push("/onboarding/delivery");
             break;
           case "restaurant_owner":
             router.push("/onboarding/restaurant");

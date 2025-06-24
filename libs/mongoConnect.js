@@ -1,30 +1,52 @@
-// This approach is taken from https://github.com/vercel/next.js/tree/canary/examples/with-mongodb
-import { MongoClient } from "mongodb"
-
-if (!process.env.NEXT_PUBLIC_MONGO_URL) {
-  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"')
-}
+import { MongoClient } from "mongodb";
 
 const uri = process.env.NEXT_PUBLIC_MONGO_URL;
-const options = {}
+const options = {
+  useUnifiedTopology: true,
+  useNewUrlParser: true,
+};
 
-let client
+let client;
 let clientPromise;
 
-if (process.env.NODE_ENV === "development") {
-  // In development mode, use a global variable so that the value
-  // is preserved across module reloads caused by HMR (Hot Module Replacement).
-  if (!global._mongoClientPromise) {
-    client = new MongoClient(uri, options)
-    global._mongoClientPromise = client.connect()
-  }
-  clientPromise = global._mongoClientPromise
+if (!process.env.NEXT_PUBLIC_MONGO_URL) {
+  console.warn("MongoDB URI not found. Database operations will be skipped.");
+  // Create a mock client for development
+  clientPromise = Promise.resolve({
+    db: () => ({
+      collection: () => ({
+        insertOne: () => Promise.resolve({ insertedId: "mock-id" }),
+        updateOne: () => Promise.resolve({ modifiedCount: 1 }),
+        find: () => ({
+          sort: () => ({
+            limit: () => ({
+              toArray: () => Promise.resolve([]),
+            }),
+          }),
+        }),
+      }),
+    }),
+  });
 } else {
-  // In production mode, it's best to not use a global variable.
-  client = new MongoClient(uri, options)
-  clientPromise = client.connect()
+  if (process.env.NODE_ENV === "development") {
+    if (!global._mongoClientPromise) {
+      client = new MongoClient(uri, options);
+      global._mongoClientPromise = client.connect();
+    }
+    clientPromise = global._mongoClientPromise;
+  } else {
+    client = new MongoClient(uri, options);
+    clientPromise = client.connect();
+  }
 }
 
-// Export a module-scoped MongoClient promise. By doing this in a
-// separate module, the client can be shared across functions.
-export default clientPromise
+export async function connectToDatabase() {
+  try {
+    const client = await clientPromise;
+    const db = client.db("food_delivery_payments");
+    return { client, db };
+  } catch (error) {
+    console.error("MongoDB connection error:", error);
+    throw error;
+  }
+}

@@ -4,7 +4,8 @@ import { get } from "mongoose";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL_USER;
 const API_BASE_URL_RESTAURANT = process.env.NEXT_PUBLIC_API_URL_RESTAURANT;
-const API_BASE_URL_DRIVER = process.env.NEXT_PUBLIC_API_URL_DRIVER;
+const API_BASE_URL_DRIVER = process.env.NEXT_PUBLIC_API_URL_DELIVERY;
+const API_BASE_URL_REFERRAL = process.env.NEXT_PUBLIC_API_URL_REFERAL;
 
 // Cookie configuration
 const COOKIE_OPTIONS = {
@@ -116,6 +117,7 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
     throw error;
   }
 };
+
 
 // Server-side API call function (for middleware or server components)
 export const serverApiCall = async (endpoint, options = {}, request = null) => {
@@ -310,8 +312,10 @@ export const authAPI = {
 };
 
 
-export const  restaurantAPI = {
+// Restaurant API calls
+export const restaurantAPI = {
 
+  // Create restaurant data onboarding
   createRestaurantData: (profileData) =>
     apiCall(
       "/api/restaurants",
@@ -356,8 +360,19 @@ export const  restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
+
+  getMenuItem: (itemId) =>
+    apiCall(
+      "/api/items/owner/restaurant",
+      {
+        method: "GET",
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+
   getMenuItems: () =>
     apiCall("/api/items/owner/restaurant", {}, API_BASE_URL_RESTAURANT),
+
   updateMenuItem: (itemId, item) =>
     apiCall(
       `/api/items/${itemId}`,
@@ -420,6 +435,24 @@ export const  restaurantAPI = {
 
 // Driver API calls
 export const driverAPI = {
+  createDriverProfile: (profileData) =>
+    apiCall(
+      "/api/drivers/register",
+      {
+        method: "POST",
+        body: JSON.stringify(profileData),
+      },
+      API_BASE_URL_DRIVER
+    ),
+  updateDriverProfile: (profileData) =>
+    apiCall(
+      "/api/drivers/profile",
+      {
+        method: "PUT",
+        body: JSON.stringify(profileData),
+      },
+      API_BASE_URL_DRIVER
+    ),
   getAvailableDeliveries: () =>
     apiCall("/api/driver/deliveries/available", {}, API_BASE_URL_DRIVER),
   acceptDelivery: (deliveryId) =>
@@ -494,6 +527,7 @@ export const customerAPI = {
       },
       API_BASE_URL
     ),
+
   getRestaurantById: async (restaurantId) => {
     return apiCall(`/api/restaurants/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
   },
@@ -502,6 +536,58 @@ export const customerAPI = {
   },
   getMenu: async (restaurantId) => {
     return apiCall(`/api/menus/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+
+// Referral API calls
+export const referralAPI = {
+  generateReferralCode: async () => {
+    const res = await apiCall(
+      "/api/referrals/generate",
+      { method: "POST" },
+      API_BASE_URL_REFERRAL
+    );
+    return res;
+  },
+
+  resetreferralCode: async () => {
+    const res = await apiCall(
+      "/api/referrals/reset",
+      { method: "POST" },
+      API_BASE_URL_REFERRAL
+    );
+    return res;
+  },
+  getMyReferralCode: async () => {
+    const res = await apiCall("/api/referrals/my", {}, API_BASE_URL_REFERRAL);
+    return res;
+  },
+  getwhoreferredMe: async () => {
+    const res = await apiCall(
+      "/api/referrals/referred-by",
+      {},
+      API_BASE_URL_REFERRAL
+    );
+    return res;
+  },
+
+  getPeopleIReferred: async () => {
+    const res = await apiCall(
+      "/api/referrals/referrals",
+      {},
+      API_BASE_URL_REFERRAL
+    );
+    return res;
+  },
+
+  useReferralCode: async (code) => {
+    const res = await apiCall(
+      "/api/referrals/use",
+      {
+        method: "POST",
+        body: JSON.stringify({ code }),
+      },
+      API_BASE_URL_REFERRAL
+    );
+    return res;
   },
 };
 
