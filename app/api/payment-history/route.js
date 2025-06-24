@@ -1,7 +1,9 @@
-import { connectToDatabase } from "../../lib/mongodb";
+import { connectToDatabase } from "@/libs/mongoConnect";
 import jwt from "jsonwebtoken";
 
 export default async function handler(req, res) {
+
+  console.log("Payment History API called", req.method, req.headers.authorization);
   if (req.method !== "GET") {
     return res.status(405).json({ message: "Method not allowed" });
   }

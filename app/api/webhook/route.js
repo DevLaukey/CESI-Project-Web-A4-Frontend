@@ -1,140 +1,69 @@
-import { buffer } from "micro";
+// app/api/webhook/route.js
+import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { connectToDatabase } from "../../lib/mongodb";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method not allowed" });
-  }
-
-  const buf = await buffer(req);
-  const sig = req.headers["stripe-signature"];
+export async function POST(request) {
+  const body = await request.text();
+  const sig = request.headers.get("stripe-signature");
 
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(buf, sig, endpointSecret);
+    // Verify webhook signature
+    event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
   } catch (err) {
     console.error("Webhook signature verification failed:", err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    return NextResponse.json(
+      { error: `Webhook Error: ${err.message}` },
+      { status: 400 }
+    );
   }
 
-  const { db } = await connectToDatabase();
+  console.log("Webhook received:", event.type);
 
+  // Handle the event
   switch (event.type) {
     case "payment_intent.succeeded":
-      const paymentIntent = event.data.object;
-
-      // Update payment record in database
-      await db.collection("payments").updateOne(
-        { paymentIntentId: paymentIntent.id },
-        {
-          $set: {
-            status: "completed",
-            stripeStatus: paymentIntent.status,
-            completedAt: new Date(),
-            updatedAt: new Date(),
-          },
-        }
-      );
-
-      // Notify other microservices about successful payment
-      await notifyOrderService(
-        paymentIntent.metadata.orderId,
-        "payment_completed"
-      );
-      await notifyNotificationService(
-        paymentIntent.metadata.userId,
-        "payment_success"
-      );
-
-      console.log("Payment succeeded:", paymentIntent.id);
+      await handlePaymentSuccess(event.data.object);
       break;
-
     case "payment_intent.payment_failed":
-      const failedPayment = event.data.object;
-
-      // Update payment record
-      await db.collection("payments").updateOne(
-        { paymentIntentId: failedPayment.id },
-        {
-          $set: {
-            status: "failed",
-            stripeStatus: failedPayment.status,
-            failedAt: new Date(),
-            updatedAt: new Date(),
-            failureReason:
-              failedPayment.last_payment_error?.message || "Payment failed",
-          },
-        }
-      );
-
-      // Notify about failed payment
-      await notifyOrderService(
-        failedPayment.metadata.orderId,
-        "payment_failed"
-      );
-      await notifyNotificationService(
-        failedPayment.metadata.userId,
-        "payment_failed"
-      );
-
-      console.log("Payment failed:", failedPayment.id);
+      await handlePaymentFailure(event.data.object);
       break;
-
+    case "charge.dispute.created":
+      await handleDispute(event.data.object);
+      break;
     default:
       console.log(`Unhandled event type: ${event.type}`);
   }
 
-  res.json({ received: true });
+  return NextResponse.json({ received: true });
 }
 
-// Helper functions for inter-service communication
-async function notifyOrderService(orderId, status) {
-  try {
-    await fetch(
-      `${process.env.ORDER_SERVICE_URL}/api/orders/${orderId}/payment-status`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Service-Token": process.env.SERVICE_TOKEN,
-        },
-        body: JSON.stringify({ paymentStatus: status }),
-      }
-    );
-  } catch (error) {
-    console.error("Failed to notify order service:", error);
-  }
+async function handlePaymentSuccess(paymentIntent) {
+  const { orderId } = paymentIntent.metadata;
+
+  // Update order status in database
+  await updateOrderStatus(orderId, "paid");
+
+  // Notify restaurant
+  await notifyRestaurant(orderId);
+
+  // Send confirmation email
+  await sendConfirmationEmail(paymentIntent.metadata.userEmail);
+
+  // Update inventory
+  await updateInventory(orderId);
 }
 
-async function notifyNotificationService(userId, type) {
-  try {
-    await fetch(`${process.env.NOTIFICATION_SERVICE_URL}/api/notifications`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Service-Token": process.env.SERVICE_TOKEN,
-      },
-      body: JSON.stringify({
-        userId,
-        type,
-        message:
-          type === "payment_success"
-            ? "Your payment was processed successfully!"
-            : "Payment failed. Please try again.",
-      }),
-    });
-  } catch (error) {
-    console.error("Failed to notify notification service:", error);
-  }
+async function handlePaymentFailure(paymentIntent) {
+  const { orderId } = paymentIntent.metadata;
+
+  // Mark order as failed
+  await updateOrderStatus(orderId, "payment_failed");
+
+  // Notify customer
+  await notifyPaymentFailure(paymentIntent.metadata.userEmail);
 }
