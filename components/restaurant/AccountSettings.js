@@ -12,7 +12,9 @@ import {
   Save,
   AlertCircle,
   X,
-  Plus
+  Plus,
+  AlertTriangle,
+  Trash2,
 } from 'lucide-react';
 
 export default function AccountSettings() {
@@ -36,6 +38,11 @@ export default function AccountSettings() {
     businessLicense: '',
     tags: []
   });
+
+  //Delete Modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Operating Hours State - Updated to match onboarding format
   const [operatingHours, setOperatingHours] = useState({
@@ -218,6 +225,45 @@ export default function AccountSettings() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleDeleteRestaurant = async () => {
+    if (deleteConfirmation !== restaurantInfo.name) {
+      setError("Restaurant name confirmation does not match");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const response = await restaurantAPI.deleteRestaurant();
+
+      if (response.success) {
+        // Logout the user and redirect
+        await logout();
+        // You might want to redirect to a specific page or show a success message
+        window.location.href = "/"; // Redirect to home page
+      } else {
+        setError(response.error || "Failed to delete restaurant");
+      }
+    } catch (error) {
+      console.error("Error deleting restaurant:", error);
+      setError("Failed to delete restaurant. Please try again.");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
+
+  const openDeleteModal = () => {
+    setShowDeleteModal(true);
+    setDeleteConfirmation("");
+    setError("");
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeleteConfirmation("");
+    setError("");
   };
 
   // Save functions for each tab
@@ -502,6 +548,31 @@ export default function AccountSettings() {
             </p>
           </div>
         )}
+      </div>
+
+            {/* Danger Zone */}
+            <div className="border-t border-gray-200 pt-6">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <AlertTriangle className="h-6 w-6 text-red-600" />
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-lg font-medium text-red-900 mb-2">Danger Zone</h3>
+              <p className="text-sm text-red-700 mb-4">
+                Once you delete your restaurant, there is no going back. This action cannot be undone.
+                All your menu items, orders, and data will be permanently deleted.
+              </p>
+              <button
+                onClick={openDeleteModal}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+              >
+                <Trash2 size={16} />
+                Delete Restaurant
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -888,7 +959,7 @@ export default function AccountSettings() {
             <AlertCircle size={16} className="text-red-600 mr-2" />
             <span className="text-sm text-red-800">{error}</span>
             <button
-              onClick={() => setError('')}
+              onClick={() => setError("")}
               className="ml-auto text-red-600 hover:text-red-800"
             >
               <X size={16} />
@@ -909,16 +980,16 @@ export default function AccountSettings() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center space-x-2 ${
                     activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? "border-blue-500 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                   }`}
                 >
                   <IconComponent size={16} />
                   <span>{tab.name}</span>
                   {/* Show unsaved indicator */}
-                  {((tab.id === 'restaurant' && unsavedChanges.restaurant) ||
-                    (tab.id === 'hours' && unsavedChanges.hours) ||
-                    (tab.id === 'business' && unsavedChanges.business)) && (
+                  {((tab.id === "restaurant" && unsavedChanges.restaurant) ||
+                    (tab.id === "hours" && unsavedChanges.hours) ||
+                    (tab.id === "business" && unsavedChanges.business)) && (
                     <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
                   )}
                 </button>
@@ -928,10 +999,72 @@ export default function AccountSettings() {
         </div>
 
         {/* Tab Content */}
-        <div className="p-6">
-          {renderTabContent()}
-        </div>
+        <div className="p-6">{renderTabContent()}</div>
       </div>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="h-6 w-6 text-red-600 mr-3" />
+              <h3 className="text-lg font-semibold text-gray-900">
+                Delete Restaurant
+              </h3>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-4">
+                This action cannot be undone. This will permanently delete your
+                restaurant, all menu items, orders, and remove all associated
+                data from our servers.
+              </p>
+
+              <p className="text-sm text-gray-600 mb-4">
+                Please type <strong>{restaurantInfo.name}</strong> to confirm
+                deletion:
+              </p>
+
+              <input
+                type="text"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                placeholder={restaurantInfo.name}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={closeDeleteModal}
+                disabled={isDeleting}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteRestaurant}
+                disabled={
+                  isDeleting || deleteConfirmation !== restaurantInfo.name
+                }
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    <span>Delete Restaurant</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

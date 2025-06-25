@@ -454,6 +454,15 @@ export const restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
+
+    deleteRestaurant: () =>
+    apiCall(
+      `/api/restaurants/owner/me`,
+      {
+        method: "DELETE",
+      },
+      API_BASE_URL_RESTAURANT
+    ),
 };
 
 // Driver API calls
