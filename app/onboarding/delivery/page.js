@@ -189,7 +189,7 @@ export default function DriverOnboarding() {
 
         if (userData.userType !== "delivery_driver") {
           console.log("User is not a driver, redirecting to dashboard");
-          router.push("/dashboard");
+          router.push("/");
           return;
         }
 
@@ -379,8 +379,8 @@ export default function DriverOnboarding() {
         return;
       }
 
-      // Prepare driver data for backend
-      const driverData = {
+      // Prepare driver onboarding data for backend
+      const onboardingData = {
         phone_number: formData.phone_number.trim(),
         license_number: formData.license_number.trim(),
         vehicle_type: formData.vehicle_type,
@@ -390,42 +390,63 @@ export default function DriverOnboarding() {
         vehicle_color: formData.vehicle_color || null,
         license_plate: formData.license_plate.trim(),
         insurance_number: formData.insurance_number?.trim() || null,
-        // documents: {
-        //   ...formData.documents,
-        //   emergency_contact_name: formData.emergency_contact_name,
-        //   emergency_contact_phone: formData.emergency_contact_phone,
-        //   bank_account_iban:
-        //     formData.bank_account_iban?.replace(/\s/g, "") || null,
-        //   tax_id: formData.tax_id || null,
-        // },
+        emergency_contact_name: formData.emergency_contact_name.trim(),
+        emergency_contact_phone: formData.emergency_contact_phone.trim(),
+        bank_account_iban:
+          formData.bank_account_iban?.replace(/\s/g, "") || null,
+        tax_id: formData.tax_id?.trim() || null,
+
+        // Add document handling if your backend supports it
+        // documents: formData.documents, // Include if your backend handles file uploads
       };
 
-      console.log("Submitting driver data:", driverData);
+      console.log("Submitting driver onboarding data:", onboardingData);
 
-      // This would be your actual API call
-      const response = await driverAPI.createDriverProfile(driverData);
+      // Use the correct API call for onboarding
+      const response = await driverAPI.createDriverProfile(onboardingData);
 
-      console.log("Driver profile created:", response); 
+      console.log("Driver onboarding completed:", response);
+
       if (!response || !response.success) {
         throw new Error(
-          response?.message || "Failed to create driver profile"
+          response?.message || "Failed to complete driver onboarding"
         );
       }
 
       setSuccessMessage(
-        "Driver profile submitted successfully! We'll review your application and get back to you within 24-48 hours."
+        "Driver profile completed successfully! We'll review your application and get back to you within 24-48 hours."
       );
 
-      // Redirect to driver dashboard/waiting page
+      // Redirect to driver dashboard
       setTimeout(() => {
-        router.push("/driver/dashboard");
+        router.push("/delivery");
       }, 3000);
     } catch (error) {
       console.error("Driver onboarding error:", error);
-      setError(
-        error.message ||
-          "Failed to submit driver application. Please try again."
-      );
+
+      // Handle specific error cases
+      if (
+        error.message.includes("already registered") ||
+        error.message.includes("409")
+      ) {
+        setError("Driver profile already exists. Redirecting to dashboard...");
+        setTimeout(() => {
+          router.push("/delivery");
+        }, 2000);
+      } else if (
+        error.message.includes("401") ||
+        error.message.includes("unauthorized")
+      ) {
+        setError("Authentication expired. Please log in again.");
+        setTimeout(() => {
+          router.push("/login");
+        }, 2000);
+      } else {
+        setError(
+          error.message ||
+            "Failed to submit driver application. Please try again."
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
