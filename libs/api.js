@@ -6,6 +6,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL_USER;
 const API_BASE_URL_RESTAURANT = process.env.NEXT_PUBLIC_API_URL_RESTAURANT;
 const API_BASE_URL_DRIVER = process.env.NEXT_PUBLIC_API_URL_DELIVERY;
 const API_BASE_URL_REFERRAL = process.env.NEXT_PUBLIC_API_URL_REFERAL;
+const API_BASE_URL_ORDER = process.env.NEXT_PUBLIC_API_URL_ORDER;
 
 // Cookie configuration
 const COOKIE_OPTIONS = {
@@ -88,7 +89,6 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
       response
     );
 
-
     if (!response.ok) {
       if (response.status === 401) {
         clearAuthData();
@@ -116,7 +116,6 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
     throw error;
   }
 };
-
 
 // Server-side API call function (for middleware or server components)
 export const serverApiCall = async (endpoint, options = {}, request = null) => {
@@ -312,7 +311,6 @@ export const authAPI = {
 
 // Restaurant API calls
 export const restaurantAPI = {
-
   // Create restaurant data onboarding
   createRestaurantData: (profileData) =>
     apiCall(
@@ -493,7 +491,6 @@ export const driverAPI = {
 
 // Customer API calls
 export const customerAPI = {
-
   getRestaurants: () =>
     apiCall("/api/restaurants", {}, API_BASE_URL_RESTAURANT),
   searchRestaurants: (queryParams) => {
@@ -524,9 +521,13 @@ export const customerAPI = {
       },
       API_BASE_URL
     ),
-    getRestaurantById: async (restaurantId) => {
-    return apiCall(`/api/restaurants/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
-  }
+  getRestaurantById: async (restaurantId) => {
+    return apiCall(
+      `/api/restaurants/${restaurantId}`,
+      {},
+      API_BASE_URL_RESTAURANT
+    );
+  },
 };
 
 // Referral API calls
@@ -580,6 +581,26 @@ export const referralAPI = {
       API_BASE_URL_REFERRAL
     );
     return res;
+  },
+};
+
+export const orderAPI = {
+  // for sales
+  getOrders: async () => {
+    const res = await apiCall("/orders", {}, API_BASE_URL_ORDER);
+    return res;
+  },
+};
+
+export const userAPI = {
+  getUserById: async (uuid) => {
+    return apiCall(`/api/users/${uuid}`, {}, API_BASE_URL);
+  },
+};
+
+export const restaurantAPI2 = {
+  getRestaurantById: async (uuid) => {
+    return apiCall(`/api/restaurants/${uuid}`, {}, API_BASE_URL_RESTAURANT);
   },
 };
 
