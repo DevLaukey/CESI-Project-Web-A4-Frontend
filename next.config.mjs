@@ -4,6 +4,8 @@ const nextConfig = {
     domains: ["th.bing.com", "images.unsplash.com"],
   },
 
+  
+
   env: {
     STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
     MONGODB_URI: process.env.MONGODB_URI,
