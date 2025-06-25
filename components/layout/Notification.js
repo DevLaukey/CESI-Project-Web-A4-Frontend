@@ -1,4 +1,12 @@
-import { Bell, Circle, DollarSign, Settings, Truck, UtensilsCrossed } from "lucide-react";
+import {
+  Bell,
+  Circle,
+  DollarSign,
+  Settings,
+  Truck,
+  UtensilsCrossed,
+  CheckCircle,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function NotificationBell({ userType, notificationCount = 0 }) {

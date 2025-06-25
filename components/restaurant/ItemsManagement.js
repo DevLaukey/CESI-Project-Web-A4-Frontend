@@ -72,6 +72,8 @@ export default function ItemsManagement() {
         params.append("allergens", filters.allergens.join(","));
 
       const response = await restaurantAPI.getItems(params);
+
+      console.log("Fetched items:", response);
       setItems(response?.items || []);
       setPagination((prev) => ({
         ...prev,
@@ -133,6 +135,7 @@ export default function ItemsManagement() {
   };
 
   const handleItemCreated = () => {
+  
     setShowCreateModal(false);
     fetchItems();
   };

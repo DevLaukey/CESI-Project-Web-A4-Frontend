@@ -271,12 +271,12 @@ export const authAPI = {
     }
   },
 
-  getProfile: () => apiCall("/api/auth/profile", {}, API_BASE_URL),
+  getProfile: () => apiCall("/api/users/profile", {}, API_BASE_URL),
 
   updateProfile: async (userData) => {
     try {
       const response = await apiCall(
-        "/api/auth/profile",
+        "/api/users/profile",
         {
           method: "PUT",
           body: JSON.stringify(userData),
@@ -295,6 +295,62 @@ export const authAPI = {
       return response;
     } catch (error) {
       console.error("Profile update error:", error);
+      throw error;
+    }
+  },
+
+  updateProfilePicture: async (formData) => {
+    try {
+      const response = await apiCall(
+        "/api/users/profile-picture",
+        {
+          method: "PUT",
+          body: formData,
+        },
+        API_BASE_URL
+      );
+      // Update user data in cookies if profile picture update is successful
+      if (response.user) {
+        const token = getToken();
+        if (token) {
+          setAuthData(token, response.user);
+        }
+      }
+      return response;
+    } catch (error) {
+      console.error("Profile picture update error:", error);
+      throw error;
+    }
+  },
+
+  updatePassword: async (passwordData) => {
+    try {
+      const response = await apiCall(
+        "/api/users/change-password",
+        {
+          method: "PUT",
+          body: JSON.stringify(passwordData),
+        },
+        API_BASE_URL
+      );
+    } catch (error) {
+      console.error("Password update error:", error);
+      throw error;
+    }
+  },
+
+  deleteAccount: async () => {
+    try {
+      await apiCall(
+        "/api/users/delete",
+        {
+          method: "DELETE",
+        },
+        API_BASE_URL
+      );
+      clearAuthData();
+    } catch (error) {
+      console.error("Account deletion error:", error);
       throw error;
     }
   },
@@ -330,6 +386,17 @@ export const restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
+  
+  addMenuItem: (item) =>
+    apiCall(
+      "/api/items",
+      {
+        method: "POST",
+        body: JSON.stringify(item),
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+  
   getOrders: () =>
     apiCall("/api/restaurant/orders", {}, API_BASE_URL_RESTAURANT),
   updateOrderStatus: (orderId, status) =>
@@ -357,6 +424,16 @@ export const restaurantAPI = {
       API_BASE_URL_RESTAURANT
     ),
 
+  addItems: ( items) =>
+    apiCall(
+      `/api/items`,
+      {
+        method: "POST",
+        body: JSON.stringify(items),
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+
   getMenuItem: (itemId) =>
     apiCall(
       "/api/items/owner/restaurant",
@@ -369,9 +446,9 @@ export const restaurantAPI = {
   getMenuItems: () =>
     apiCall("/api/items/owner/restaurant", {}, API_BASE_URL_RESTAURANT),
 
-  updateMenuItem: (itemId, item) =>
+  updateMenuItem: (menuUUID, item) =>
     apiCall(
-      `/api/items/${itemId}`,
+      `/api/menus/${menuUUID}`,
       {
         method: "PUT",
         body: JSON.stringify(item),
@@ -499,6 +576,7 @@ export const customerAPI = {
       : "/api/restaurants/search";
     return apiCall(endpoint, {}, API_BASE_URL);
   },
+
   getRestaurantMenu: (restaurantId) =>
     apiCall(`/api/restaurants/${restaurantId}/menu`, {}, API_BASE_URL),
   placeOrder: (orderData) =>
@@ -521,6 +599,9 @@ export const customerAPI = {
       },
       API_BASE_URL
     ),
+
+
+
   getRestaurantById: async (restaurantId) => {
     return apiCall(
       `/api/restaurants/${restaurantId}`,
@@ -528,6 +609,18 @@ export const customerAPI = {
       API_BASE_URL_RESTAURANT
     );
   },
+
+  getMenuItems: async (restaurantId) => {
+    return apiCall(
+      `/api/items/restaurant/${restaurantId}`,
+      {},
+      API_BASE_URL_RESTAURANT
+    );
+  },
+  getMenu: async (restaurantId) => {
+    return apiCall(`/api/menus/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
+  },
+
 };
 
 // Referral API calls
