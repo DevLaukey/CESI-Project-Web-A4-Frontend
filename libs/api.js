@@ -6,6 +6,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL_USER;
 const API_BASE_URL_RESTAURANT = process.env.NEXT_PUBLIC_API_URL_RESTAURANT;
 const API_BASE_URL_DRIVER = process.env.NEXT_PUBLIC_API_URL_DELIVERY;
 const API_BASE_URL_REFERRAL = process.env.NEXT_PUBLIC_API_URL_REFERAL;
+const API_BASE_URL_ORDER = process.env.NEXT_PUBLIC_API_URL_ORDER;
 
 // Cookie configuration
 const COOKIE_OPTIONS = {
@@ -599,6 +600,8 @@ export const customerAPI = {
       API_BASE_URL
     ),
 
+
+
   getRestaurantById: async (restaurantId) => {
     return apiCall(
       `/api/restaurants/${restaurantId}`,
@@ -606,6 +609,7 @@ export const customerAPI = {
       API_BASE_URL_RESTAURANT
     );
   },
+
   getMenuItems: async (restaurantId) => {
     return apiCall(
       `/api/items/restaurant/${restaurantId}`,
@@ -616,6 +620,7 @@ export const customerAPI = {
   getMenu: async (restaurantId) => {
     return apiCall(`/api/menus/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
   },
+
 };
 
 // Referral API calls
@@ -669,6 +674,26 @@ export const referralAPI = {
       API_BASE_URL_REFERRAL
     );
     return res;
+  },
+};
+
+export const orderAPI = {
+  // for sales
+  getOrders: async () => {
+    const res = await apiCall("/orders", {}, API_BASE_URL_ORDER);
+    return res;
+  },
+};
+
+export const userAPI = {
+  getUserById: async (uuid) => {
+    return apiCall(`/api/users/${uuid}`, {}, API_BASE_URL);
+  },
+};
+
+export const restaurantAPI2 = {
+  getRestaurantById: async (uuid) => {
+    return apiCall(`/api/restaurants/${uuid}`, {}, API_BASE_URL_RESTAURANT);
   },
 };
 
