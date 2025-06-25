@@ -117,66 +117,6 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
   }
 };
 
-// Server-side API call function (for middleware or server components)
-export const serverApiCall = async (endpoint, options = {}, request = null) => {
-  let token = null;
-  let userId = null;
-
-  // Extract token and user data from request cookies if available (for middleware)
-  if (request && request.cookies) {
-    token = request.cookies.get("authToken")?.value;
-    const userDataCookie = request.cookies.get("userData")?.value;
-
-    if (userDataCookie) {
-      try {
-        const userData = JSON.parse(userDataCookie);
-        userId = userData?.uuid || userData?.id || null;
-      } catch (error) {
-        console.error("Error parsing user data from server cookies:", error);
-      }
-    }
-  }
-
-  const config = {
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-    ...options,
-  };
-
-  // Add authorization header if token exists
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  // Add user ID header if userId exists
-  if (userId) {
-    config.headers["x-user-id"] = userId;
-  }
-
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-
-    if (!response.ok) {
-      let errorMessage = `HTTP Error ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch (parseError) {
-        errorMessage = response.statusText || errorMessage;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Server API Error:", error);
-    throw error;
-  }
-};
-
 // Enhanced Auth API calls with cookie management
 export const authAPI = {
   login: async (credentials) => {
@@ -386,7 +326,17 @@ export const restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
-  
+
+    updateRestaurantProfile: (profileData) =>
+    apiCall(
+      "/api/restaurants/owner/me",
+      {
+        method: "PATCH",
+        body: JSON.stringify(profileData),
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+
   addMenuItem: (item) =>
     apiCall(
       "/api/items",
@@ -396,7 +346,7 @@ export const restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
-  
+
   getOrders: () =>
     apiCall("/api/restaurant/orders", {}, API_BASE_URL_RESTAURANT),
   updateOrderStatus: (orderId, status) =>
@@ -424,7 +374,7 @@ export const restaurantAPI = {
       API_BASE_URL_RESTAURANT
     ),
 
-  addItems: ( items) =>
+  addItems: (items) =>
     apiCall(
       `/api/items`,
       {
@@ -455,6 +405,7 @@ export const restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
+    
   deleteMenuItem: (itemId) =>
     apiCall(
       `/api/items/${itemId}`,
@@ -499,6 +450,15 @@ export const restaurantAPI = {
   deleteMenu: (menuId) =>
     apiCall(
       `/api/menus/${menuId}`,
+      {
+        method: "DELETE",
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+
+    deleteRestaurant: () =>
+    apiCall(
+      `/api/restaurants/owner/me`,
       {
         method: "DELETE",
       },
