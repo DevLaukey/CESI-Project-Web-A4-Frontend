@@ -488,13 +488,18 @@ function DashboardLayoutContent({ children }) {
 
   const [showNotifications, setShowNotifications] = useState(false);
 
+  
   // Check if restaurant owner has completed onboarding
   useEffect(() => {
     const checkRestaurantOnboarding = async () => {
       if (user?.userType !== "restaurant_owner") {
         setIsCheckingOnboarding(false);
+        router.push("/browse-restaurant");
         return;
       }
+
+   
+   
 
       try {
         console.log("Checking restaurant onboarding status...");

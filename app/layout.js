@@ -1,9 +1,9 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { AppProvider } from "@/components/AppContext";
 import { AuthProvider } from "@/components/AuthContext";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { AppContextProvider } from "@/data/AppContext";
 
 // Importing fonts from Google Fonts
 // Geist Sans and Geist Mono are custom fonts provided by Next.js
@@ -42,11 +42,11 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
           <AuthProvider>
-          <AppProvider>
+          <AppContextProvider>
             <Header />
             {children}
             <Footer />
-          </AppProvider>
+          </AppContextProvider>
           </AuthProvider>
       </body>
     </html>

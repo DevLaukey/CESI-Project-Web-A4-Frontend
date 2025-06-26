@@ -6,6 +6,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL_USER;
 const API_BASE_URL_RESTAURANT = process.env.NEXT_PUBLIC_API_URL_RESTAURANT;
 const API_BASE_URL_DRIVER = process.env.NEXT_PUBLIC_API_URL_DELIVERY;
 const API_BASE_URL_REFERRAL = process.env.NEXT_PUBLIC_API_URL_REFERAL;
+const API_BASE_URL_ORDER = process.env.NEXT_PUBLIC_API_URL_ORDER;
 
 // Cookie configuration
 const COOKIE_OPTIONS = {
@@ -672,6 +673,59 @@ export const referralAPI = {
   },
 };
 
+
+export const OrderAPI = {
+  createOrder: async (orderData) => {
+    return apiCall(
+      "/orders",
+      {
+        method: "POST",
+        body: JSON.stringify(orderData),
+      },
+      API_BASE_URL_ORDER
+    );
+  },
+  getOrderWithDetails: async (orderId) => {
+    return apiCall(
+      `/orders/${orderId}`,
+      {},
+      API_BASE_URL_ORDER
+    );
+  },
+  getOrderTracking: async (orderId) => {
+    return apiCall(
+      `/orders/${orderId}`,
+      {},
+      API_BASE_URL_ORDER
+    );
+  },
+
+  getOrderDetails: async (orderId) => {
+    return apiCall(
+      `/orders/${orderId}`,
+      {},
+      API_BASE_URL_ORDER
+    );
+  },
+
+  getOrderHistory: async () => {
+    return apiCall(
+      "/orders/history",
+      {},
+      API_BASE_URL_ORDER
+    );
+  },
+
+  cancelOrder: async (orderId) => {
+    return apiCall(
+      `/api/orders/${orderId}/cancel`,
+      {
+        method: "PUT",
+      },
+      API_BASE_URL
+    );
+  },
+}
 // Export helper functions for external use
 export { getToken, setAuthData, clearAuthData, getUserData, getUserId };
 
