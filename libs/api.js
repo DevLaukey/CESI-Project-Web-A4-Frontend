@@ -456,6 +456,7 @@ export const restaurantAPI = {
       API_BASE_URL_RESTAURANT
     ),
   
+  
   getRestaurantInfoFromUUID: () =>
     apiCall(
       `/api/restaurants/owner/me`,
@@ -841,6 +842,17 @@ export const OrderAPI = {
       {
         method: "PATCH",
         body: JSON.stringify(orderData),
+      },
+      API_BASE_URL_ORDER
+    );
+  },
+
+  updateOrderStatus: async (orderId, status) => {
+    return apiCall(
+      `/orders/${orderId}/status`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
       },
       API_BASE_URL_ORDER
     );

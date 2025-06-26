@@ -1,7 +1,7 @@
 // components/restaurant/OrdersManagement.js
 "use client";
 import { OrderAPI, restaurantAPI } from "@/libs/api";
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export default function OrdersManagement() {
   const [orders, setOrders] = useState([]);
@@ -23,7 +23,7 @@ export default function OrdersManagement() {
       setError("Failed to fetch restaurant ID");
       return null;
     }
-  }, [restaurantAPI]);
+  }, []);
 
   // Fetch orders from API
   const fetchOrders = useCallback(
@@ -32,41 +32,60 @@ export default function OrdersManagement() {
         if (showLoading) setLoading(true);
         setError(null);
 
-        // Fetch orders for the restaurant from /orders/restaurant/restaurantid
+        const restaurantId = await getRestaurantId();
+        if (!restaurantId) return;
 
         const response = await OrderAPI.getSpecificRestaurantOrders(
-          await getRestaurantId()
+          restaurantId
         );
 
         console.log("Fetched orders:", response);
 
         // Transform API response to match component structure
-        const transformedOrders =
-          response.data?.map((order) => ({
-            id: order.id || order.order_id,
-            customer:
-              order.customer_name ||
-              `${order.customer?.first_name || ""} ${
-                order.customer?.last_name || ""
-              }`.trim(),
-            items: order.order_items?.length || order.total_items || 0,
-            total: parseFloat(order.total_amount || order.total || 0),
-            status: order.status || "pending",
-            time: order.created_at
-              ? new Date(order.created_at).toLocaleTimeString("en-US", {
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true,
-                })
-              : "",
-            phone: order.customer_phone || order.customer?.phone || "",
-            address: order.delivery_address || order.customer?.address || "",
-            orderItems: order.order_items || [],
-            createdAt: order.created_at,
-            updatedAt: order.updated_at,
-            estimatedTime: order.estimated_preparation_time,
-            specialInstructions: order.special_instructions,
-          })) || [];
+        const transformedOrders = Array.isArray(response)
+          ? response.map((order) => {
+              // Calculate total from items
+              const total =
+                order.items?.reduce(
+                  (sum, item) => sum + item.price * item.quantity,
+                  0
+                ) || 0;
+
+              // Count total items
+              const totalItems =
+                order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+              return {
+                id: order.id,
+                uuid: order.uuid,
+                customer: `Customer ${order.uuid?.slice(0, 8) || "Unknown"}`, // Fallback since no customer name in response
+                items: totalItems,
+                total: total,
+                status: order.status || "pending",
+                time: order.createdAt
+                  ? new Date(order.createdAt).toLocaleTimeString("en-US", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true,
+                    })
+                  : "",
+                phone: "", // Not available in current response
+                address: order.delivery_address || "",
+                orderItems:
+                  order.items?.map((item) => ({
+                    item_id: item.item_id,
+                    quantity: item.quantity,
+                    price: item.price,
+                    name: `Item ${item.item_id?.slice(0, 8)}`, // Fallback since no item name in response
+                  })) || [],
+                createdAt: order.createdAt,
+                updatedAt: order.updatedAt,
+                payment_id: order.payment_id,
+                restaurant_id: order.restaurant_id,
+                specialInstructions: "", // Not available in current response
+              };
+            })
+          : [];
 
         setOrders(transformedOrders);
       } catch (err) {
@@ -77,16 +96,16 @@ export default function OrdersManagement() {
         setRefreshing(false);
       }
     },
-    [getRestaurantId, setLoading, setError, setRefreshing]
+    [getRestaurantId]
   );
 
   // Update order status
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      await apiRequest(`/orders/${orderId}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: newStatus }),
-      });
+      // Use OrderAPI to update status - adjust this call based on your actual API method
+      await OrderAPI.updateOrderStatus(orderId, newStatus);
+
+      console.log(`Updating order ${orderId} status to ${newStatus}`);
 
       // Update local state
       setOrders((prev) =>
@@ -95,7 +114,6 @@ export default function OrdersManagement() {
         )
       );
 
-      // Show success message (you can integrate with your notification system)
       console.log(`Order ${orderId} status updated to ${newStatus}`);
     } catch (err) {
       console.error("Error updating order status:", err);
@@ -128,7 +146,7 @@ export default function OrdersManagement() {
       case "confirmed":
       case "preparing":
         return "bg-blue-100 text-blue-800";
-      case "ready":
+      case "out_for_delivery":
         return "bg-green-100 text-green-800";
       case "picked_up":
       case "delivered":
@@ -155,10 +173,8 @@ export default function OrdersManagement() {
       preparing: orders.filter(
         (o) => o.status === "preparing" || o.status === "confirmed"
       ).length,
-      ready: orders.filter((o) => o.status === "ready").length,
-      delivered: orders.filter(
-        (o) => o.status === "delivered" || o.status === "picked_up"
-      ).length,
+      delivered: orders.filter((o) => o.status === "delivered").length,
+      cancelled: orders.filter((o) => o.status === "cancelled").length,
     };
   };
 
@@ -217,7 +233,8 @@ export default function OrdersManagement() {
             <option value="all">All Orders</option>
             <option value="pending">Pending</option>
             <option value="preparing">Preparing</option>
-            <option value="ready">Ready</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="out_for_delivery">Out for Delivery</option>
             <option value="delivered">Delivered</option>
           </select>
           <button
@@ -268,11 +285,11 @@ export default function OrdersManagement() {
           <div className="text-2xl font-bold text-blue-600">
             {stats.preparing}
           </div>
-          <div className="text-sm text-gray-600">Preparing</div>
+          <div className="text-sm text-gray-600">Confirmed/Preparing</div>
         </div>
         <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="text-2xl font-bold text-green-600">{stats.ready}</div>
-          <div className="text-sm text-gray-600">Ready for Pickup</div>
+          <div className="text-2xl font-bold text-green-600">{stats.delivered}</div>
+          <div className="text-sm text-gray-600">Delivered</div>
         </div>
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="text-2xl font-bold text-gray-600">
@@ -316,6 +333,11 @@ export default function OrdersManagement() {
                       >
                         {order.status}
                       </span>
+                      {order.payment_id && (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
+                          Paid
+                        </span>
+                      )}
                     </div>
                     <div className="text-sm text-gray-600">{order.time}</div>
                   </div>
@@ -325,7 +347,9 @@ export default function OrdersManagement() {
                       <p className="font-medium text-gray-900">
                         {order.customer}
                       </p>
-                      <p className="text-sm text-gray-600">{order.phone}</p>
+                      <p className="text-sm text-gray-600">
+                        UUID: {order.uuid?.slice(0, 8)}...
+                      </p>
                       <p className="text-sm text-gray-600">{order.address}</p>
                     </div>
                     <div>
@@ -335,20 +359,20 @@ export default function OrdersManagement() {
                       <p className="text-lg font-semibold text-gray-900">
                         ${order.total.toFixed(2)}
                       </p>
-                      {order.estimatedTime && (
-                        <p className="text-sm text-gray-600">
-                          Est: {order.estimatedTime} min
+                      {order.payment_id && (
+                        <p className="text-xs text-green-600">
+                          Payment ID: {order.payment_id.slice(0, 10)}...
                         </p>
                       )}
                     </div>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {order.status === "pending" && (
+                    {order.status === "confirmed" && (
                       <>
                         <button
                           onClick={() =>
-                            handleStatusChange(order.id, "confirmed")
+                            handleStatusChange(order.id, "preparing")
                           }
                           className="bg-blue-600 text-white px-3 py-1 text-sm rounded-lg hover:bg-blue-700 transition-colors"
                         >
@@ -365,24 +389,25 @@ export default function OrdersManagement() {
                       </>
                     )}
 
-                    {(order.status === "confirmed" ||
-                      order.status === "preparing") && (
+                    {order.status === "preparing" && (
                       <button
-                        onClick={() => handleStatusChange(order.id, "ready")}
+                        onClick={() =>
+                          handleStatusChange(order.id, "out_for_delivery")
+                        }
                         className="bg-green-600 text-white px-3 py-1 text-sm rounded-lg hover:bg-green-700 transition-colors"
                       >
-                        Mark Ready
+                        Mark Out for Delivery
                       </button>
                     )}
 
-                    {order.status === "ready" && (
+                    {order.status === "out_for_delivery" && (
                       <button
                         onClick={() =>
-                          handleStatusChange(order.id, "picked_up")
+                          handleStatusChange(order.id, "delivered")
                         }
                         className="bg-gray-600 text-white px-3 py-1 text-sm rounded-lg hover:bg-gray-700 transition-colors"
                       >
-                        Mark Picked Up
+                        Mark Delivered
                       </button>
                     )}
 
@@ -448,16 +473,13 @@ export default function OrdersManagement() {
                   Customer
                 </label>
                 <p className="text-gray-900">{selectedOrder.customer}</p>
+                <p className="text-xs text-gray-500">
+                  Order UUID: {selectedOrder.uuid}
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">
-                  Phone
-                </label>
-                <p className="text-gray-900">{selectedOrder.phone}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-600">
-                  Address
+                  Delivery Address
                 </label>
                 <p className="text-gray-900">{selectedOrder.address}</p>
               </div>
@@ -470,13 +492,13 @@ export default function OrdersManagement() {
                   {selectedOrder.total.toFixed(2)}
                 </p>
               </div>
-              {selectedOrder.specialInstructions && (
+              {selectedOrder.payment_id && (
                 <div>
                   <label className="text-sm font-medium text-gray-600">
-                    Special Instructions
+                    Payment ID
                   </label>
-                  <p className="text-gray-900">
-                    {selectedOrder.specialInstructions}
+                  <p className="text-gray-900 text-xs font-mono">
+                    {selectedOrder.payment_id}
                   </p>
                 </div>
               )}
@@ -515,6 +537,14 @@ export default function OrdersManagement() {
                     </div>
                   </div>
                 )}
+              <div>
+                <label className="text-sm font-medium text-gray-600">
+                  Order Times
+                </label>
+                <p className="text-xs text-gray-500">
+                  Created: {new Date(selectedOrder.createdAt).toLocaleString()}
+                </p>
+              </div>
             </div>
 
             <div className="mt-6 flex space-x-3">
@@ -523,12 +553,6 @@ export default function OrdersManagement() {
                 className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Close
-              </button>
-              <button
-                onClick={() => window.open(`tel:${selectedOrder.phone}`)}
-                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Call Customer
               </button>
             </div>
           </div>
