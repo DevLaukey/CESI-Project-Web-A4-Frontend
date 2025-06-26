@@ -255,6 +255,12 @@ const CheckoutPage = () => {
       
 
 
+      //  Create order for the restaurant
+
+
+
+
+      
       // Save order data locally for reference
       localStorage.setItem(
         "pendingOrder",
