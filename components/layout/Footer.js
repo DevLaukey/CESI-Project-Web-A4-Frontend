@@ -90,6 +90,38 @@ function Footer() {
                     <span className="text-white">Become a Driver</span>
                   </a>
                 </li>
+                <li>
+                  <a
+                    href="/thirdparty"
+                    className="text-white hover:text-yellow-400 transition-colors"
+                  >
+                    <span className="text-white">Third party Developer</span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/sales"
+                    className="text-white hover:text-yellow-400 transition-colors"
+                  >
+                    <span className="text-white">Sales</span>
+                  </a>
+                  </li>
+                  <li>
+                    <a
+                      href="/technical-assistance"
+                      className="text-white hover:text-yellow-400 transition-colors"
+                    >
+                      <span className="text-white">Technical Assistance</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="/admin"
+                      className="text-white hover:text-yellow-400 transition-colors"
+                    >
+                      <span className="text-white">Admin</span> 
+                    </a>
+                  </li>
               </ul>
             </div>
 

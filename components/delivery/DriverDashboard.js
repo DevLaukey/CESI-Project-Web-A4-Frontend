@@ -1,5 +1,7 @@
+// pages/driver/dashboard.jsx or components/DriverDashboard.jsx
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useDriver } from "@/components/DriverContext";
 import {
   User,
   Bell,
@@ -26,8 +28,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { driverAPI } from "@/libs/api";
 
+// Dynamically import DriverMap to avoid SSR issues
 const DriverMap = dynamic(() => import("@/components/delivery/DriverMap"), {
   ssr: false,
   loading: () => (
@@ -40,195 +42,31 @@ const DriverMap = dynamic(() => import("@/components/delivery/DriverMap"), {
 });
 
 export default function DriverDashboard() {
-  const [activeTab, setActiveTab] = useState("available");
-  const [notifications, setNotifications] = useState([]);
-  const [loadingStates, setLoadingStates] = useState({
-    acceptingDelivery: false,
-    decliningDelivery: false,
-    updatingStatus: false,
-    availableDeliveries: false,
-    loadingHistory: false,
-  });
-  const [error, setError] = useState(null);
-  const [locationError, setLocationError] = useState(null);
-  const [currentLocation, setCurrentLocation] = useState(null);
-  const [availableDeliveries, setAvailableDeliveries] = useState([]);
-  const [currentDelivery, setCurrentDelivery] = useState(null);
-  const [deliveryHistory, setDeliveryHistory] = useState([]);
-  const [stats, setStats] = useState({
-    todayEarnings: 0,
-    weeklyEarnings: 0,
-    completedDeliveries: 0,
-    averageRating: 0,
-    onlineTime: "0h 0m",
-  });
-  const [isOnline, setIsOnline] = useState(false);
+  const {
+    // State
+    isOnline,
+    error,
+    currentLocation,
+    locationError,
+    availableDeliveries,
+    currentDelivery,
+    deliveryHistory,
+    stats,
+    activeTab,
+    notifications,
+    loadingStates,
 
-  useEffect(() => {
-    loadAvailableDeliveries();
-    loadDeliveryHistory();
-    loadStats();
-
-    const interval = setInterval(() => {
-      refreshData();
-    }, 60000); // Refresh data every minute
-    return () => clearInterval(interval);
-  }, [isOnline]);
-
-  const loadAvailableDeliveries = async () => {
-    if (!isOnline) {
-      setAvailableDeliveries([]);
-      return;
-    }
-    setLoadingStates((prev) => ({ ...prev, availableDeliveries: true }));
-    try {
-      const deliveries = await driverAPI.getAvailableDeliveries();
-
-      if (!deliveries || deliveries.length === 0) {
-        setAvailableDeliveries([]);
-        setError("No available deliveries at the moment");
-        return;
-      }
-      setAvailableDeliveries(deliveries);
-    } catch (err) {
-      setError("Failed to load available deliveries");
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, availableDeliveries: false }));
-    }
-  };
-
-  const loadDeliveryHistory = async () => {};
-
-  const loadStats = async () => {};
-
-  const acceptDelivery = async (delivery) => {
-    if (!isOnline) {
-      setError("You must be online to accept deliveries");
-      return;
-    }
-    setLoadingStates((prev) => ({ ...prev, acceptingDelivery: false }));
-    try {
-      const response = await driverAPI.acceptDelivery(delivery.id);
-      if (response.success) {
-        setCurrentDelivery(delivery);
-        setAvailableDeliveries((prev) =>
-          prev.filter((d) => d.id !== delivery.id)
-        );
-        setError(null);
-        setActiveTab("current");
-      } else {
-        setError("Failed to accept delivery");
-        return;
-      }
-      
-    } catch (err) {
-      setError("Failed to accept delivery");
-      return;
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, acceptingDelivery: false }));
-    }
-
-  };
-  const declineDelivery = async (deliveryId) => {
-    if (!isOnline) {
-      setError("You must be online to decline deliveries");
-      return;
-    }
-    setLoadingStates((prev) => ({ ...prev, decliningDelivery: true }));
-    try {
-      const response = await driverAPI.rejectDelivery(deliveryId);
-      if (response.success) {
-        setAvailableDeliveries((prev) =>
-          prev.filter((d) => d.id !== deliveryId)
-        );
-        setError(null);
-      } else {
-        setError("Failed to decline delivery");
-      }
-    } catch (err) {
-      setError("Failed to decline delivery");
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, decliningDelivery: false }));
-    }
-  };
-  const completeDelivery = async () => {
-    if (!currentDelivery || !isOnline) {
-      setError("No current delivery to complete");
-      return;
-    }
-    setLoadingStates((prev) => ({ ...prev, updatingStatus: true }));
-
-    try {
-      const response = await driverAPI.completeDelivery(currentDelivery.id);
-      if (response.success) {
-        setCurrentDelivery(null);
-        setAvailableDeliveries((prev) =>
-          prev.filter((d) => d.id !== currentDelivery.id)
-        );
-        setError(null);
-        loadAvailableDeliveries();
-        setActiveTab("available");
-      } else {
-        setError("Failed to complete delivery");
-      }
-
-    } catch (err) {
-      setError("Failed to complete delivery");
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, updatingStatus: false }));
-    }
-  };
-  
-  const toggleOnlineStatus = async () => {
-    try {
-      const newStatus = !isOnline;
-      const response = await driverAPI.toggleAvailability(newStatus);
-      console.log("response from toggling availability", response);
-      if (response.success) {
-        setIsOnline(newStatus);
-        setError(null);
-        if (newStatus) {
-          loadAvailableDeliveries();
-        } else {
-          setAvailableDeliveries([]);
-          setCurrentDelivery(null);
-        }
-      } else {
-        setError("Failed to change online status");
-      }
-    } catch (err) {
-      setError("Failed to change online status");
-    }
-  };
-  const handleLogout = () => {
-    // Logic to handle logout
-  };
-
-  const handleSetActiveTab = (tab) => {
-    setActiveTab(tab);
-  };
-  const clearError = () => {
-    setError(null);
-  };
-  const handleRemoveNotification = (notificationId) => {
-    setNotifications((prev) =>
-      prev.filter((notification) => notification.id !== notificationId)
-    );
-  };
-  const refreshData = () => {
-    // Logic to refresh data
-    setLoadingStates((prev) => ({
-      ...prev,
-      availableDeliveries: true,
-    }));
-    // Simulate data fetching
-    setTimeout(() => {
-      setLoadingStates((prev) => ({
-        ...prev,
-        availableDeliveries: false,
-      }));
-    }, 2000);
-  };
+    // Actions
+    acceptDelivery,
+    declineDelivery,
+    completeDelivery,
+    toggleOnlineStatus,
+    handleLogout,
+    setActiveTab,
+    clearError,
+    removeNotification,
+    refreshData,
+  } = useDriver();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -435,7 +273,6 @@ export default function DriverDashboard() {
       )}
 
       {/* Notifications */}
-
       <div className="fixed top-4 left-4 z-50 space-y-2">
         {notifications.map((notification) => (
           <div

@@ -32,6 +32,14 @@ export const metadata = {
       name: "Victor Mburu",
       url: ""
     },
+    {
+      name: "Larry Mutoni",
+      url: ""
+    },
+    {
+      name: "LPG",
+      url: ""
+    },
   ],
 };
 

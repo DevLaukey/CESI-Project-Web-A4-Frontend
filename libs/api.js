@@ -4,7 +4,7 @@ import { get } from "mongoose";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL_USER;
 const API_BASE_URL_RESTAURANT = process.env.NEXT_PUBLIC_API_URL_RESTAURANT;
-const API_BASE_URL_DRIVER = process.env.NEXT_PUBLIC_API_URL_DELIVERY;
+const API_BASE_URL_DRIVER = process.env.NEXT_PUBLIC_API_URL_DRIVER;
 const API_BASE_URL_REFERRAL = process.env.NEXT_PUBLIC_API_URL_REFERAL;
 const API_BASE_URL_ORDER = process.env.NEXT_PUBLIC_API_URL_ORDER;
 
@@ -113,66 +113,6 @@ const apiCall = async (endpoint, options = {}, baseUrl) => {
     return data;
   } catch (error) {
     console.error("API Error:", error);
-    throw error;
-  }
-};
-
-// Server-side API call function (for middleware or server components)
-export const serverApiCall = async (endpoint, options = {}, request = null) => {
-  let token = null;
-  let userId = null;
-
-  // Extract token and user data from request cookies if available (for middleware)
-  if (request && request.cookies) {
-    token = request.cookies.get("authToken")?.value;
-    const userDataCookie = request.cookies.get("userData")?.value;
-
-    if (userDataCookie) {
-      try {
-        const userData = JSON.parse(userDataCookie);
-        userId = userData?.uuid || userData?.id || null;
-      } catch (error) {
-        console.error("Error parsing user data from server cookies:", error);
-      }
-    }
-  }
-
-  const config = {
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-    ...options,
-  };
-
-  // Add authorization header if token exists
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  // Add user ID header if userId exists
-  if (userId) {
-    config.headers["x-user-id"] = userId;
-  }
-
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-
-    if (!response.ok) {
-      let errorMessage = `HTTP Error ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch (parseError) {
-        errorMessage = response.statusText || errorMessage;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Server API Error:", error);
     throw error;
   }
 };
@@ -386,7 +326,17 @@ export const restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
-  
+
+  updateRestaurantProfile: (profileData) =>
+    apiCall(
+      "/api/restaurants/owner/me",
+      {
+        method: "PATCH",
+        body: JSON.stringify(profileData),
+      },
+      API_BASE_URL_RESTAURANT
+    ),
+
   addMenuItem: (item) =>
     apiCall(
       "/api/items",
@@ -396,7 +346,7 @@ export const restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
-  
+
   getOrders: () =>
     apiCall("/api/restaurant/orders", {}, API_BASE_URL_RESTAURANT),
   updateOrderStatus: (orderId, status) =>
@@ -424,7 +374,7 @@ export const restaurantAPI = {
       API_BASE_URL_RESTAURANT
     ),
 
-  addItems: ( items) =>
+  addItems: (items) =>
     apiCall(
       `/api/items`,
       {
@@ -455,6 +405,7 @@ export const restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
+
   deleteMenuItem: (itemId) =>
     apiCall(
       `/api/items/${itemId}`,
@@ -504,6 +455,15 @@ export const restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
+
+  deleteRestaurant: () =>
+    apiCall(
+      `/api/restaurants/owner/me`,
+      {
+        method: "DELETE",
+      },
+      API_BASE_URL_RESTAURANT
+    ),
 };
 
 // Driver API calls
@@ -517,6 +477,23 @@ export const driverAPI = {
       },
       API_BASE_URL_DRIVER
     ),
+
+  completeDriverProfile: (profileData) =>
+    apiCall(
+      "/api/drivers/complete-profile",
+      {
+        method: "POST",
+        body: JSON.stringify(profileData),
+      },
+      API_BASE_URL_DRIVER
+    ),
+
+  getDriverProfile: () =>
+    apiCall("/api/drivers/profile", {}, API_BASE_URL_DRIVER),
+
+  getCurrentDelivery: () =>
+    apiCall("/api/driver/deliveries/current", {}, API_BASE_URL_DRIVER),
+
   updateDriverProfile: (profileData) =>
     apiCall(
       "/api/drivers/profile",
@@ -526,16 +503,19 @@ export const driverAPI = {
       },
       API_BASE_URL_DRIVER
     ),
+
   getAvailableDeliveries: () =>
-    apiCall("/api/driver/deliveries/available", {}, API_BASE_URL_DRIVER),
+    apiCall("/api/drivers/deliveries/available", {}, API_BASE_URL_DRIVER),
+
   acceptDelivery: (deliveryId) =>
     apiCall(
-      `/api/driver/deliveries/${deliveryId}/accept`,
+      `/api/deliveries/${deliveryId}/accept`,
       {
         method: "POST",
       },
       API_BASE_URL_DRIVER
     ),
+
   updateDeliveryStatus: (deliveryId, status) =>
     apiCall(
       `/api/driver/deliveries/${deliveryId}`,
@@ -545,7 +525,9 @@ export const driverAPI = {
       },
       API_BASE_URL_DRIVER
     ),
+
   getEarnings: () => apiCall("/api/driver/earnings", {}, API_BASE_URL_DRIVER),
+
   updateLocation: (latitude, longitude) =>
     apiCall(
       "/api/driver/location",
@@ -555,6 +537,7 @@ export const driverAPI = {
       },
       API_BASE_URL_DRIVER
     ),
+
   setAvailability: (isAvailable) =>
     apiCall(
       "/api/driver/availability",
@@ -564,6 +547,165 @@ export const driverAPI = {
       },
       API_BASE_URL_DRIVER
     ),
+
+  getDeliveryHistory: (page = 1, limit = 10, status = null) => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    });
+
+    if (status) {
+      params.append("status", status);
+    }
+
+    return apiCall(
+      `/api/drivers/deliveries/history?${params}`,
+      {},
+      API_BASE_URL_DRIVER
+    );
+  },
+
+  getDriverEarnings: (startDate = null, endDate = null) => {
+    const params = new URLSearchParams();
+
+    if (startDate) {
+      params.append("start_date", startDate);
+    }
+    if (endDate) {
+      params.append("end_date", endDate);
+    }
+
+    const endpoint = params.toString()
+      ? `/api/drivers/earnings?${params}`
+      : "/api/drivers/earnings";
+    return apiCall(endpoint, {}, API_BASE_URL_DRIVER);
+  },
+
+  getVerificationStatus: () =>
+    apiCall("/api/drivers/verification-status", {}, API_BASE_URL_DRIVER),
+
+  getVehicleInfo: () =>
+    apiCall("/api/drivers/vehicle", {}, API_BASE_URL_DRIVER),
+
+  toggleAvailability: (available) => {
+    console.log("Toggling availability:", available)
+    return apiCall(
+      "/api/drivers/availability",
+      {
+        method: "PATCH",
+        body: JSON.stringify({ available }),
+      },
+      API_BASE_URL_DRIVER
+    )
+  },
+
+  updateDriverLocation: (latitude, longitude, heading = null, speed = null) => {
+    const locationData = { latitude, longitude };
+
+    if (heading !== null) {
+      locationData.heading = heading;
+    }
+    if (speed !== null) {
+      locationData.speed = speed;
+    }
+
+    return apiCall(
+      "/api/drivers/location",
+      {
+        method: "POST",
+        body: JSON.stringify(locationData),
+      },
+      API_BASE_URL_DRIVER
+    );
+  },
+
+  rejectDelivery: async (deliveryId, reason = null) => {
+    try {
+      const body = reason ? { reason } : {};
+
+      return await apiCall(
+        `/api/deliveries/${deliveryId}/decline`,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+        API_BASE_URL_DRIVER
+      );
+    } catch (error) {
+      // If reject endpoint doesn't exist, we can just handle it client-side
+      if (
+        error.message.includes("404") ||
+        error.message.includes("HTTP Error 404")
+      ) {
+        return { success: true, message: "Delivery declined" };
+      }
+      throw error;
+    }
+  },
+
+  completeDelivery: async (deliveryId, completionData = {}) => {
+    try {
+      return await apiCall(
+        `/api/deliveries/${deliveryId}/complete`,
+        {
+          method: "POST",
+          body: JSON.stringify(completionData),
+        },
+        API_BASE_URL_DRIVER
+      );
+    } catch (error) {
+      // If complete endpoint doesn't exist, try updating status
+      if (
+        error.message.includes("404") ||
+        error.message.includes("HTTP Error 404")
+      ) {
+        return await originalDriverAPI.updateDeliveryStatus(
+          deliveryId,
+          "completed"
+        );
+      }
+      throw error;
+    }
+  },
+};
+
+export const formatDeliveryData = (delivery) => {
+  return {
+    id: delivery.id || delivery._id,
+    restaurant: delivery.restaurant || { name: delivery.restaurantName },
+    customer: delivery.customer || { name: delivery.customerName },
+    address: delivery.deliveryAddress || delivery.address,
+    distance: delivery.distance || `${(delivery.distanceKm || 0).toFixed(1)} km`,
+    earnings: delivery.driverEarnings || delivery.earnings || delivery.amount,
+    estimatedTime: delivery.estimatedDeliveryTime || delivery.estimatedTime || 'N/A',
+    items: delivery.items?.length || delivery.itemCount || 0,
+    priority: delivery.priority || 'normal',
+    lat: delivery.deliveryLocation?.latitude || delivery.lat,
+    lng: delivery.deliveryLocation?.longitude || delivery.lng,
+    status: delivery.status,
+    createdAt: delivery.createdAt,
+    updatedAt: delivery.updatedAt
+  };
+};
+
+// Helper function to format driver stats
+export const formatDriverStats = (stats) => {
+  return {
+    todayEarnings: `€${(stats.todayEarnings || 0).toFixed(2)}`,
+    weeklyEarnings: `€${(stats.weeklyEarnings || stats.totalEarnings || 0).toFixed(2)}`,
+    completedDeliveries: stats.completedDeliveries || stats.totalDeliveries || 0,
+    averageRating: (stats.averageRating || 0).toFixed(1),
+    onlineTime: formatOnlineTime(stats.onlineTime || stats.totalHours || 0)
+  };
+};
+
+// Helper function to format online time
+export const formatOnlineTime = (hours) => {
+  if (typeof hours === 'string') return hours;
+  
+  const h = Math.floor(hours);
+  const m = Math.floor((hours - h) * 60);
+  return `${h}h ${m}m`;
 };
 
 // Customer API calls
@@ -600,6 +742,8 @@ export const customerAPI = {
       API_BASE_URL
     ),
 
+
+
   getRestaurantById: async (restaurantId) => {
     return apiCall(
       `/api/restaurants/${restaurantId}`,
@@ -607,6 +751,7 @@ export const customerAPI = {
       API_BASE_URL_RESTAURANT
     );
   },
+
   getMenuItems: async (restaurantId) => {
     return apiCall(
       `/api/items/restaurant/${restaurantId}`,
@@ -617,6 +762,7 @@ export const customerAPI = {
   getMenu: async (restaurantId) => {
     return apiCall(`/api/menus/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
   },
+
 };
 
 // Referral API calls
@@ -675,6 +821,11 @@ export const referralAPI = {
 
 
 export const OrderAPI = {
+    getOrders: async () => {
+    const res = await apiCall("/orders", {}, API_BASE_URL_ORDER);
+    return res;
+  },
+
   createOrder: async (orderData) => {
     return apiCall(
       "/orders",
@@ -724,8 +875,22 @@ export const OrderAPI = {
       },
       API_BASE_URL
     );
+  }
+};
+
+export const userAPI = {
+  getUserById: async (uuid) => {
+    return apiCall(`/api/users/${uuid}`, {}, API_BASE_URL);
   },
-}
+};
+
+export const restaurantAPI2 = {
+  getRestaurantById: async (uuid) => {
+    return apiCall(`/api/restaurants/${uuid}`, {}, API_BASE_URL_RESTAURANT);
+  },
+};
+
+
 // Export helper functions for external use
 export { getToken, setAuthData, clearAuthData, getUserData, getUserId };
 
