@@ -819,12 +819,63 @@ export const referralAPI = {
   },
 };
 
-export const orderAPI = {
-  // for sales
-  getOrders: async () => {
+
+export const OrderAPI = {
+    getOrders: async () => {
     const res = await apiCall("/orders", {}, API_BASE_URL_ORDER);
     return res;
   },
+
+  createOrder: async (orderData) => {
+    return apiCall(
+      "/orders",
+      {
+        method: "POST",
+        body: JSON.stringify(orderData),
+      },
+      API_BASE_URL_ORDER
+    );
+  },
+  getOrderWithDetails: async (orderId) => {
+    return apiCall(
+      `/orders/${orderId}`,
+      {},
+      API_BASE_URL_ORDER
+    );
+  },
+  getOrderTracking: async (orderId) => {
+    return apiCall(
+      `/orders/${orderId}`,
+      {},
+      API_BASE_URL_ORDER
+    );
+  },
+
+  getOrderDetails: async (orderId) => {
+    return apiCall(
+      `/orders/${orderId}`,
+      {},
+      API_BASE_URL_ORDER
+    );
+  },
+
+  getOrderHistory: async () => {
+    return apiCall(
+      "/orders/history",
+      {},
+      API_BASE_URL_ORDER
+    );
+  },
+
+  cancelOrder: async (orderId) => {
+    return apiCall(
+      `/api/orders/${orderId}/cancel`,
+      {
+        method: "PUT",
+      },
+      API_BASE_URL
+    );
+  }
 };
 
 export const userAPI = {
@@ -838,6 +889,7 @@ export const restaurantAPI2 = {
     return apiCall(`/api/restaurants/${uuid}`, {}, API_BASE_URL_RESTAURANT);
   },
 };
+
 
 // Export helper functions for external use
 export { getToken, setAuthData, clearAuthData, getUserData, getUserId };

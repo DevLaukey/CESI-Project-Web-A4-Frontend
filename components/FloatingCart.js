@@ -14,13 +14,10 @@ import {
   ChevronDown,
   Trash2,
 } from "lucide-react";
+import { useCart } from "@/components/AppContext";
 import Image from "next/image";
-import { useCart } from "@/data/CartContext";
 
 const FloatingCart = ({ restaurant }) => {
-
-
-  console.log("FloatingCart restaurant:", restaurant);
   const router = useRouter();
   const {
     items,
@@ -35,8 +32,6 @@ const FloatingCart = ({ restaurant }) => {
     meetsMinimumOrder,
     minimumOrderRemaining,
   } = useCart();
-
-  console.log("FloatingCart items:", total);
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -91,7 +86,7 @@ const FloatingCart = ({ restaurant }) => {
       <div className="fixed bottom-4 right-4 z-50">
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className=" text-white p-4 rounded-full shadow-lg hover:bg-gray-800 transition-all duration-300 flex items-center space-x-2 min-w-max"
+          className="bg-black text-white p-4 rounded-full shadow-lg hover:bg-gray-800 transition-all duration-300 flex items-center space-x-2 min-w-max"
         >
           <div className="relative">
             <ShoppingCart className="w-6 h-6" />
@@ -99,7 +94,7 @@ const FloatingCart = ({ restaurant }) => {
               {itemCount}
             </span>
           </div>
-          <span className="font-medium">€{parseFloat(total).toFixed(2)}</span>
+          <span className="font-medium">€{total.toFixed(2)}</span>
           {isExpanded ? (
             <ChevronDown className="w-4 h-4" />
           ) : (

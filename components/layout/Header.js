@@ -1,5 +1,4 @@
 "use client";
-import { CartContext } from "@/components/AppContext";
 import { useAuth } from "@/components/AuthContext";
 import Link from "next/link";
 import { useContext, useState, useEffect } from "react";
@@ -31,6 +30,7 @@ import {
 } from "lucide-react";
 import NotificationBell from "./Notification";
 import { AuthLinks } from "./AuthLinks";
+import { CartContext } from "@/data/CartContext";
 
 export default function Header() {
   const { isAuthenticated, user, userType, userName, logout } = useAuth();
