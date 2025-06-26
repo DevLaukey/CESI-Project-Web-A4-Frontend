@@ -1,9 +1,12 @@
 // components/restaurant/OrderHistory.js
 "use client";
-import { useState, useEffect } from 'react';
+import { OrderAPI, restaurantAPI } from "@/libs/api";
+import { useState, useEffect, useCallback } from 'react';
 
 export default function OrderHistory() {
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     dateRange: 'last_30_days',
     status: 'all',
@@ -13,35 +16,6 @@ export default function OrderHistory() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage] = useState(10);
-
-  // Generate dummy order history data
-  const generateDummyOrders = () => {
-    const statuses = ['completed', 'cancelled', 'refunded'];
-    const customers = ['John Smith', 'Sarah Johnson', 'Mike Wilson', 'Emma Davis', 'Tom Brown', 'Lisa Garcia', 'David Miller', 'Anna Taylor'];
-    const orders = [];
-
-    for (let i = 1; i <= 50; i++) {
-      const randomDate = new Date();
-      randomDate.setDate(randomDate.getDate() - Math.floor(Math.random() * 90));
-      
-      orders.push({
-        id: `123${i.toString().padStart(2, '0')}`,
-        customer: customers[Math.floor(Math.random() * customers.length)],
-        date: randomDate.toISOString().split('T')[0],
-        time: randomDate.toLocaleTimeString(),
-        items: Math.floor(Math.random() * 5) + 1,
-        total: (Math.random() * 50 + 15).toFixed(2),
-        status: statuses[Math.floor(Math.random() * statuses.length)],
-        paymentMethod: Math.random() > 0.5 ? 'Card' : 'Cash',
-        deliveryMethod: Math.random() > 0.3 ? 'Delivery' : 'Pickup',
-        rating: Math.random() > 0.7 ? (Math.random() * 2 + 3).toFixed(1) : null,
-        notes: Math.random() > 0.8 ? 'Special instructions included' : ''
-      });
-    }
-
-    return orders.sort((a, b) => new Date(b.date) - new Date(a.date));
-  };
-
   const [stats, setStats] = useState({
     totalOrders: 0,
     totalRevenue: 0,
@@ -49,18 +23,104 @@ export default function OrderHistory() {
     completionRate: 0
   });
 
-  useEffect(() => {
-    const dummyOrders = generateDummyOrders();
-    setOrders(dummyOrders);
-    calculateStats(dummyOrders);
+  // Function to get restaurant ID
+  const getRestaurantId = useCallback(async () => {
+    try {
+      const response = await restaurantAPI.getRestaurantInfoFromUUID();
+      const id = response.restaurant?.uuid;
+      return id;
+    } catch (err) {
+      console.error("Error fetching restaurant ID:", err);
+      setError("Failed to fetch restaurant ID");
+      return null;
+    }
   }, []);
+
+  // Fetch orders from API
+  const fetchOrders = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const restaurantId = await getRestaurantId();
+      if (!restaurantId) return;
+
+      const response = await OrderAPI.getSpecificRestaurantOrders(restaurantId);
+      console.log("Fetched order history:", response);
+      
+      // Transform API response to match component structure
+      const transformedOrders = Array.isArray(response) 
+        ? response.map((order) => {
+            // Calculate total from items
+            const total = order.items?.reduce((sum, item) => 
+              sum + (item.price * item.quantity), 0) || 0;
+            
+            // Count total items
+            const totalItems = order.items?.reduce((sum, item) => 
+              sum + item.quantity, 0) || 0;
+
+            // Determine if order is considered completed
+            const isCompleted = ['delivered', 'picked_up', 'completed'].includes(order.status);
+            const isCancelled = order.status === 'cancelled';
+            const isRefunded = order.status === 'refunded';
+
+            return {
+              id: order.id,
+              uuid: order.uuid,
+              customer: `Customer ${order.uuid?.slice(0, 8) || 'Unknown'}`,
+              date: order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : '',
+              time: order.createdAt 
+                ? new Date(order.createdAt).toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  })
+                : '',
+              items: totalItems,
+              total: total.toFixed(2),
+              status: isCompleted ? 'completed' : (isCancelled ? 'cancelled' : (isRefunded ? 'refunded' : order.status)),
+              paymentMethod: order.payment_id ? 'Card' : 'Pending',
+              deliveryMethod: 'Delivery', // Default since we don't have this info
+              rating: null, // Not available in current response
+              notes: '',
+              orderItems: order.items?.map(item => ({
+                item_id: item.item_id,
+                quantity: item.quantity,
+                price: item.price,
+                name: `Item ${item.item_id?.slice(0, 8)}`,
+              })) || [],
+              createdAt: order.createdAt,
+              updatedAt: order.updatedAt,
+              payment_id: order.payment_id,
+              restaurant_id: order.restaurant_id,
+              delivery_address: order.delivery_address,
+            };
+          })
+        : [];
+
+      // Sort by date (newest first)
+      transformedOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      
+      setOrders(transformedOrders);
+      calculateStats(transformedOrders);
+    } catch (err) {
+      console.error("Error fetching order history:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [getRestaurantId]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const calculateStats = (orderData) => {
     const totalOrders = orderData.length;
     const completedOrders = orderData.filter(o => o.status === 'completed');
     const totalRevenue = completedOrders.reduce((sum, order) => sum + parseFloat(order.total), 0);
     const avgOrderValue = totalRevenue / completedOrders.length || 0;
-    const completionRate = (completedOrders.length / totalOrders) * 100;
+    const completionRate = totalOrders > 0 ? (completedOrders.length / totalOrders) * 100 : 0;
 
     setStats({
       totalOrders,
@@ -75,6 +135,9 @@ export default function OrderHistory() {
       case 'completed': return 'bg-green-100 text-green-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       case 'refunded': return 'bg-yellow-100 text-yellow-800';
+      case 'pending': return 'bg-blue-100 text-blue-800';
+      case 'confirmed': return 'bg-purple-100 text-purple-800';
+      case 'ready': return 'bg-indigo-100 text-indigo-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -120,7 +183,8 @@ export default function OrderHistory() {
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase();
       filtered = filtered.filter(order => 
-        order.id.toLowerCase().includes(searchTerm) ||
+        order.id.toString().includes(searchTerm) ||
+        order.uuid.toLowerCase().includes(searchTerm) ||
         order.customer.toLowerCase().includes(searchTerm)
       );
     }
@@ -130,18 +194,19 @@ export default function OrderHistory() {
 
   const exportToCSV = () => {
     const filteredOrders = getFilteredOrders();
-    const headers = ['Order ID', 'Customer', 'Date', 'Items', 'Total', 'Status', 'Payment', 'Delivery'];
+    const headers = ['Order ID', 'UUID', 'Customer', 'Date', 'Items', 'Total', 'Status', 'Payment', 'Delivery Address'];
     const csvContent = [
       headers.join(','),
       ...filteredOrders.map(order => [
         order.id,
+        order.uuid,
         order.customer,
         order.date,
         order.items,
         order.total,
         order.status,
         order.paymentMethod,
-        order.deliveryMethod
+        order.delivery_address
       ].join(','))
     ].join('\n');
 
@@ -166,27 +231,102 @@ export default function OrderHistory() {
     setCurrentPage(page);
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-gray-900">Order History</h2>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">Loading order history...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error && orders.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-gray-900">Order History</h2>
+          <button
+            onClick={() => fetchOrders()}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error loading order history</h3>
+              <p className="mt-1 text-sm text-red-700">{error}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold text-gray-900">Order History</h2>
-        <button 
-          onClick={exportToCSV}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          Export CSV
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={fetchOrders}
+            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
+          <button 
+            onClick={exportToCSV}
+            disabled={filteredOrders.length === 0}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export CSV
+          </button>
+        </div>
       </div>
+
+      {/* Error banner */}
+      {error && orders.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">
+                There was an issue loading some data: {error}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <div className="text-3xl font-bold text-blue-600">{stats.totalOrders}</div>
           <div className="text-gray-600">Total Orders</div>
-          <div className="text-sm text-green-600 mt-1">All time</div>
+          <div className="text-sm text-blue-600 mt-1">All time</div>
         </div>
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <div className="text-3xl font-bold text-green-600">${stats.totalRevenue}</div>
@@ -214,8 +354,83 @@ export default function OrderHistory() {
               value={filters.dateRange}
               onChange={(e) => setFilters(prev => ({ ...prev, dateRange: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="today">Today</option>
+              <option value="last_7_days">Last 7 days</option>
+              <option value="last_30_days">Last 30 days</option>
+              <option value="last_3_months">Last 3 months</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </div>
+
+          {filters.dateRange === 'custom' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                <input
+                  type="date"
+                  value={filters.startDate}
+                  onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                <input
+                  type="date"
+                  value={filters.endDate}
+                  onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Status</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="refunded">Refunded</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="ready">Ready</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <input
+              type="text"
+              placeholder="Order ID, UUID, or customer"
+              value={filters.search}
+              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
+        </div>
+        
+        <div className="flex items-center justify-end mt-4">
+          <button
+            onClick={() => {
+              setFilters({
+                dateRange: 'last_30_days',
+                status: 'all',
+                search: '',
+                startDate: '',
+                endDate: ''
+              });
+              setCurrentPage(1);
+            }}
+            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+          >
+            Clear Filters
+          </button>
         </div>
       </div>
 
@@ -243,7 +458,7 @@ export default function OrderHistory() {
                 <th className="text-left py-3 px-6 text-sm font-medium text-gray-600">Total</th>
                 <th className="text-left py-3 px-6 text-sm font-medium text-gray-600">Status</th>
                 <th className="text-left py-3 px-6 text-sm font-medium text-gray-600">Payment</th>
-                <th className="text-left py-3 px-6 text-sm font-medium text-gray-600">Rating</th>
+                <th className="text-left py-3 px-6 text-sm font-medium text-gray-600">Address</th>
                 <th className="text-left py-3 px-6 text-sm font-medium text-gray-600">Actions</th>
               </tr>
             </thead>
@@ -251,7 +466,10 @@ export default function OrderHistory() {
               {currentOrders.map((order) => (
                 <tr key={order.id} className="border-t border-gray-100 hover:bg-gray-50">
                   <td className="py-4 px-6 text-sm font-medium text-gray-900">#{order.id}</td>
-                  <td className="py-4 px-6 text-sm text-gray-600">{order.customer}</td>
+                  <td className="py-4 px-6 text-sm text-gray-600">
+                    <div>{order.customer}</div>
+                    <div className="text-xs text-gray-500">{order.uuid?.slice(0, 8)}...</div>
+                  </td>
                   <td className="py-4 px-6 text-sm text-gray-600">
                     <div>{order.date}</div>
                     <div className="text-xs text-gray-500">{order.time}</div>
@@ -265,20 +483,21 @@ export default function OrderHistory() {
                   </td>
                   <td className="py-4 px-6 text-sm text-gray-600">
                     <div>{order.paymentMethod}</div>
-                    <div className="text-xs text-gray-500">{order.deliveryMethod}</div>
-                  </td>
-                  <td className="py-4 px-6 text-sm text-gray-600">
-                    {order.rating ? (
-                      <div className="flex items-center">
-                        <span className="text-yellow-400">★</span>
-                        <span className="ml-1">{order.rating}</span>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">No rating</span>
+                    {order.payment_id && (
+                      <div className="text-xs text-gray-500">{order.payment_id.slice(0, 10)}...</div>
                     )}
                   </td>
+                  <td className="py-4 px-6 text-sm text-gray-600">
+                    <div className="max-w-32 truncate">{order.delivery_address}</div>
+                  </td>
                   <td className="py-4 px-6">
-                    <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                    <button 
+                      onClick={() => {
+                        // You can add a modal or navigate to order details
+                        console.log('View order details:', order);
+                      }}
+                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                    >
                       View Details
                     </button>
                   </td>
@@ -347,7 +566,7 @@ export default function OrderHistory() {
       </div>
 
       {/* Empty State */}
-      {filteredOrders.length === 0 && (
+      {filteredOrders.length === 0 && !loading && (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <div className="text-6xl mb-4">📋</div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">No orders found</h3>
@@ -379,81 +598,3 @@ export default function OrderHistory() {
     </div>
   );
 }
-// }-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-//             >
-//               <option value="today">Today</option>
-//               <option value="last_7_days">Last 7 days</option>
-//               <option value="last_30_days">Last 30 days</option>
-//               <option value="last_3_months">Last 3 months</option>
-//               <option value="custom">Custom Range</option>
-//             </select>
-//           </div>
-
-//           {filters.dateRange === 'custom' && (
-//             <>
-//               <div>
-//                 <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-//                 <input
-//                   type="date"
-//                   value={filters.startDate}
-//                   onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-//                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-//                 />
-//               </div>
-//               <div>
-//                 <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-//                 <input
-//                   type="date"
-//                   value={filters.endDate}
-//                   onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-//                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-//                 />
-//               </div>
-//             </>
-//           )}
-
-//           <div>
-//             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-//             <select
-//               value={filters.status}
-//               onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-//               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-//             >
-//               <option value="all">All Status</option>
-//               <option value="completed">Completed</option>
-//               <option value="cancelled">Cancelled</option>
-//               <option value="refunded">Refunded</option>
-//             </select>
-//           </div>
-
-//           <div>
-//             <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-//             <input
-//               type="text"
-//               placeholder="Order ID or customer name"
-//               value={filters.search}
-//               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-//               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-//             />
-//             </div>
-//             <div className="flex items-center justify-end mt-4">
-//                 <button
-//                     onClick={() => {
-//                     setFilters({
-//                         dateRange: 'last_30_days',
-//                         status: 'all',
-//                         search: '',
-//                         startDate: '',
-//                         endDate: ''
-//                     });
-//                     setCurrentPage(1);
-//                     }}
-//                     className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-//                 >
-//                     Clear Filters
-//                 </button>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-    
