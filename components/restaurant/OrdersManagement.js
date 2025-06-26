@@ -99,9 +99,33 @@ export default function OrdersManagement() {
     [getRestaurantId]
   );
 
+  //  Create a delivery for an order {
+  const createDelivery = async (orderId) => {
+    try {
+      const restaurantId = await getRestaurantId();
+      if (!restaurantId) return;
+      const response = await OrderAPI.createDeliveryForOrder(orderId, restaurantId);
+      console.log("Delivery created:", response);
+      return response;
+    } catch (err) {
+      console.error("Error creating delivery:", err);
+      setError(`Failed to create delivery: ${err.message}`);
+      return null;
+    }
+  };  
+
   // Update order status
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
+
+      // create a delivery if the status is preparing
+      if (newStatus === "preparing") {
+        const deliveryResponse = await createDelivery(orderId);
+        if (!deliveryResponse) {
+          throw new Error("Failed to create delivery for order");
+        }
+      }
+
       // Use OrderAPI to update status - adjust this call based on your actual API method
       await OrderAPI.updateOrderStatus(orderId, newStatus);
 
@@ -288,7 +312,9 @@ export default function OrdersManagement() {
           <div className="text-sm text-gray-600">Confirmed/Preparing</div>
         </div>
         <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="text-2xl font-bold text-green-600">{stats.delivered}</div>
+          <div className="text-2xl font-bold text-green-600">
+            {stats.delivered}
+          </div>
           <div className="text-sm text-gray-600">Delivered</div>
         </div>
         <div className="bg-white p-4 rounded-lg border border-gray-200">

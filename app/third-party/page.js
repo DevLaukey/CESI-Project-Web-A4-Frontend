@@ -104,7 +104,6 @@ export default function DeveloperPortal() {
     { id: "components", label: "Components", icon: Package },
     { id: "api-docs", label: "API Documentation", icon: Code },
     { id: "account", label: "Account", icon: User },
-    { id: "settings", label: "Settings", icon: Settings },
   ];
 
   const DashboardContent = () => (
