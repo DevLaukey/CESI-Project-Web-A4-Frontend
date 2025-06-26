@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useCart } from "@/data/CartContext";
+import { OrderAPI } from "@/libs/api";
 
 export default function PaymentPage() {
   const router = useRouter();
@@ -165,25 +166,15 @@ export default function PaymentPage() {
 
       // Update order status to confirmed and add payment details
       // Since we're working with context data, we'll make a simpler API call
-      const updateResponse = await fetch(`/api/orders/${orderId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status: "confirmed",
-          payment: {
-            method: "card",
-            status: "completed",
-            transactionId: paymentIntent.id,
-            paymentIntentId: paymentIntent.id,
-            processedAt: new Date().toISOString(),
-            amount: orderDetails?.totals?.total || parseFloat(amount),
-          },
-        }),
+      const updateResponse = await OrderAPI.updateOrder(orderId, {
+        status: "confirmed",
+
+        payment_id: paymentIntent.id,
       });
 
-      if (updateResponse.ok) {
+      console.log("Update response:", updateResponse);
+
+      if (updateResponse.status === 200) {
         // Clear the cart since payment was successful
         clearCart();
 

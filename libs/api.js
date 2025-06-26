@@ -455,6 +455,15 @@ export const restaurantAPI = {
       },
       API_BASE_URL_RESTAURANT
     ),
+  
+  getRestaurantInfoFromUUID: () =>
+    apiCall(
+      `/api/restaurants/owner/me`,
+      {
+        method: "GET",
+      },
+      API_BASE_URL_RESTAURANT
+    ),
 
   deleteRestaurant: () =>
     apiCall(
@@ -826,6 +835,18 @@ export const OrderAPI = {
     return res;
   },
 
+  updateOrder:async (orderId, orderData) => {
+    return apiCall(
+      `/orders/${orderId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(orderData),
+      },
+      API_BASE_URL_ORDER
+    );
+  },
+
+  
   createOrder: async (orderData) => {
     return apiCall(
       "/orders",
@@ -836,6 +857,15 @@ export const OrderAPI = {
       API_BASE_URL_ORDER
     );
   },
+
+  getSpecificRestaurantOrders: async (restaurantId) => {
+    return apiCall(
+      `/orders/restaurant/${restaurantId}`,
+      {},
+      API_BASE_URL_ORDER
+    );
+  },
+
   getOrderWithDetails: async (orderId) => {
     return apiCall(
       `/orders/${orderId}`,

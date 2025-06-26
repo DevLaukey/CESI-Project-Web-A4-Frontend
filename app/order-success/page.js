@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useCart } from "@/data/CartContext";
-import { OrderAPI, PaymentAPI, RestaurantAPI, DeliveryAPI } from "@/libs/api";
+import { OrderAPI, RestaurantAPI, driverAPI } from "@/libs/api";
 
 export default function OrderSuccessPage() {
   const router = useRouter();
@@ -79,7 +79,7 @@ export default function OrderSuccessPage() {
 
         // Update delivery tracking if available
         if (deliveryDetails?.id) {
-          const deliveryTracking = await deliveryAPI.getDeliveryTracking(
+          const deliveryTracking = await driverAPI.getDeliveryTracking(
             deliveryDetails.id
           );
           if (deliveryTracking) {
@@ -126,21 +126,14 @@ export default function OrderSuccessPage() {
       // Fetch order details with full information
       const orderData = await OrderAPI.getOrderWithDetails(orderId);
 
-      // Fetch payment details if paymentId is available
-      let paymentData = null;
-      if (paymentId) {
-        try {
-          paymentData = await paymentAPI.getPayment(paymentId);
-          setPaymentDetails(paymentData);
-        } catch (paymentError) {
-          console.warn("Payment fetch failed:", paymentError);
-        }
-      }
+      console.log("Fetched order data:", orderData);
+
+   
 
       // Fetch delivery details
       let deliveryData = null;
       try {
-        deliveryData = await deliveryAPI.getDelivery(orderId);
+        deliveryData = await driverAPI.trackDelivery(orderId);
         setDeliveryDetails(deliveryData);
       } catch (deliveryError) {
         console.warn("Delivery fetch failed:", deliveryError);
@@ -193,6 +186,9 @@ export default function OrderSuccessPage() {
       // Try to get from localStorage first
       const lastOrder = localStorage.getItem("lastOrder");
       const pendingOrder = localStorage.getItem("pendingOrder");
+
+      console.log("Last order from localStorage:", lastOrder);
+      console.log("Pending order from localStorage:", pendingOrder);
 
       let storedOrderData = null;
       let deliveryInfo = null;
@@ -266,6 +262,8 @@ export default function OrderSuccessPage() {
       }
 
       setOrderDetails(order);
+
+      console.log("Fetched order from context/localStorage:", order);
       setEstimatedTime(order.estimatedDeliveryTime);
       initializeDefaultTracking();
     } catch (error) {
@@ -426,7 +424,7 @@ export default function OrderSuccessPage() {
             <p className="text-green-100 text-sm mb-1">Order Number</p>
             <div className="flex items-center justify-center gap-2">
               <span className="text-xl font-bold">
-                {orderDetails?.orderNumber}
+                {orderDetails?.id}
               </span>
               <button
                 onClick={copyOrderNumber}
@@ -455,18 +453,14 @@ export default function OrderSuccessPage() {
 
       {/* Warning Messages */}
       {warning && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
           <div className="max-w-4xl mx-auto flex items-start">
-            <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5 mr-3 flex-shrink-0" />
+            <CheckCircle className="w-5 h-5 text-green-400 mt-0.5 mr-3 flex-shrink-0" />
             <div>
-              <h3 className="text-sm font-medium text-yellow-800">
+              <h3 className="text-sm font-medium text-green-800">
                 Payment Processed Successfully
               </h3>
-              <p className="text-sm text-yellow-700 mt-1">
-                {warning === "status_update_failed"
-                  ? "Your payment was successful, but there was an issue updating the order status. Your order is confirmed."
-                  : "Your payment was successful, but there was a minor system issue. Your order is confirmed."}
-              </p>
+             
             </div>
           </div>
         </div>
