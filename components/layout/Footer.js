@@ -114,14 +114,7 @@ function Footer() {
                       <span className="text-white">Technical Assistance</span>
                     </a>
                   </li>
-                  <li>
-                    <a
-                      href="/admin"
-                      className="text-white hover:text-yellow-400 transition-colors"
-                    >
-                      <span className="text-white">Admin</span> 
-                    </a>
-                  </li>
+                  
               </ul>
             </div>
 

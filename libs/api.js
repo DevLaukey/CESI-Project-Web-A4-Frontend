@@ -439,7 +439,7 @@ export const restaurantAPI = {
     apiCall(
       `/api/restaurants/owner/me`,
       {
-        method: "PUT",
+        method: "PATCH",
         body: JSON.stringify({
           isOpen,
         }),
