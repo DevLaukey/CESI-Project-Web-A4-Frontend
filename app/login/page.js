@@ -64,6 +64,15 @@ export default function LoginPage() {
       if (userType === "delivery_driver" && isDeliveryRoute) {
         return redirectUrl;
       }
+      if (userType === "tech_support" && redirectUrl.startsWith("/tech-support")) {
+        return redirectUrl;
+      }
+      if (userType === "developer" && redirectUrl.startsWith("/third-party")) {
+        return redirectUrl;
+      }
+      if (userType === "sales_dept" && redirectUrl.startsWith("/sales")) {
+        return redirectUrl;
+      }
       if (userType === "end_user" && !isRestaurantRoute && !isDeliveryRoute) {
         return redirectUrl;
       }
@@ -75,6 +84,13 @@ export default function LoginPage() {
         return "/restaurant";
       case "delivery_driver":
         return "/delivery";
+      case "tech_support":
+        return "/tech-support";
+      case "sales_dept":
+        return "/sales";
+      case "developer":
+        return "/third-party";
+      
       case "end_user":
       case "user":
       default:

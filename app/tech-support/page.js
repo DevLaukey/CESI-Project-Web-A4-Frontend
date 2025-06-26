@@ -27,6 +27,17 @@ import {
   Globe,
   Shield,
   RefreshCw,
+  Table,
+  FileText,
+  TrendingUp,
+  TrendingDown,
+  Play,
+  Pause,
+  RotateCcw,
+  Copy,
+  Eye,
+  Edit,
+  MonitorSpeaker,
 } from "lucide-react";
 
 const TechnicalAssistanceDashboard = () => {
@@ -34,6 +45,7 @@ const TechnicalAssistanceDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTimeRange, setSelectedTimeRange] = useState("24h");
+  const [selectedDatabase, setSelectedDatabase] = useState("all");
 
   // Mock data for demonstration
   const [components, setComponents] = useState([
@@ -76,6 +88,180 @@ const TechnicalAssistanceDashboard = () => {
     networkTraffic: 2.4,
   });
 
+  const [databases, setDatabases] = useState([
+    {
+      id: 1,
+      name: "user-management-db",
+      type: "MySQL",
+      status: "healthy",
+      connections: 45,
+      maxConnections: 100,
+      size: "2.3 GB",
+      queries: 1250,
+      avgResponseTime: 12,
+      uptime: "99.9%",
+      host: "mysql-user-01.aiven.io",
+      port: 3306,
+      lastBackup: "2024-06-26 02:00:00",
+    },
+    {
+      id: 2,
+      name: "restaurant-db",
+      type: "MySQL",
+      status: "healthy",
+      connections: 32,
+      maxConnections: 100,
+      size: "1.8 GB",
+      queries: 890,
+      avgResponseTime: 8,
+      uptime: "99.8%",
+      host: "mysql-restaurant-01.aiven.io",
+      port: 3306,
+      lastBackup: "2024-06-26 02:15:00",
+    },
+    {
+      id: 3,
+      name: "order-db",
+      type: "MySQL",
+      status: "warning",
+      connections: 78,
+      maxConnections: 100,
+      size: "5.2 GB",
+      queries: 2340,
+      avgResponseTime: 45,
+      uptime: "98.9%",
+      host: "mysql-order-01.aiven.io",
+      port: 3306,
+      lastBackup: "2024-06-26 02:30:00",
+    },
+    {
+      id: 4,
+      name: "payment-db",
+      type: "MySQL",
+      status: "healthy",
+      connections: 23,
+      maxConnections: 100,
+      size: "3.1 GB",
+      queries: 567,
+      avgResponseTime: 6,
+      uptime: "99.9%",
+      host: "mysql-payment-01.aiven.io",
+      port: 3306,
+      lastBackup: "2024-06-26 02:45:00",
+    },
+    {
+      id: 5,
+      name: "delivery-db",
+      type: "MySQL",
+      status: "healthy",
+      connections: 56,
+      maxConnections: 100,
+      size: "1.5 GB",
+      queries: 1120,
+      avgResponseTime: 15,
+      uptime: "99.7%",
+      host: "mysql-delivery-01.aiven.io",
+      port: 3306,
+      lastBackup: "2024-06-26 03:00:00",
+    },
+    {
+      id: 6,
+      name: "notification-db",
+      type: "MySQL",
+      status: "healthy",
+      connections: 19,
+      maxConnections: 100,
+      size: "0.8 GB",
+      queries: 345,
+      avgResponseTime: 10,
+      uptime: "99.9%",
+      host: "mysql-notification-01.aiven.io",
+      port: 3306,
+      lastBackup: "2024-06-26 03:15:00",
+    },
+    {
+      id: 7,
+      name: "referral-db",
+      type: "MySQL",
+      status: "healthy",
+      connections: 12,
+      maxConnections: 100,
+      size: "0.4 GB",
+      queries: 123,
+      avgResponseTime: 7,
+      uptime: "99.8%",
+      host: "mysql-referral-01.aiven.io",
+      port: 3306,
+      lastBackup: "2024-06-26 03:30:00",
+    },
+  ]);
+
+  const [slowQueries, setSlowQueries] = useState([
+    {
+      id: 1,
+      database: "order-db",
+      query:
+        "SELECT * FROM orders o JOIN order_items oi ON o.id = oi.order_id WHERE o.created_at > '2024-06-01'",
+      duration: 2.45,
+      timestamp: "2024-06-26 14:30:25",
+      rows_examined: 125000,
+      rows_sent: 890,
+      status: "completed",
+    },
+    {
+      id: 2,
+      database: "user-management-db",
+      query:
+        "SELECT u.*, p.* FROM users u LEFT JOIN profiles p ON u.id = p.user_id WHERE u.last_login < '2024-05-01'",
+      duration: 1.82,
+      timestamp: "2024-06-26 14:28:12",
+      rows_examined: 89000,
+      rows_sent: 234,
+      status: "completed",
+    },
+    {
+      id: 3,
+      database: "restaurant-db",
+      query:
+        "UPDATE restaurants SET rating = (SELECT AVG(rating) FROM reviews WHERE restaurant_id = restaurants.id)",
+      duration: 3.21,
+      timestamp: "2024-06-26 14:25:03",
+      rows_examined: 45000,
+      rows_sent: 0,
+      status: "completed",
+    },
+  ]);
+
+  const [dbConnections, setDbConnections] = useState([
+    {
+      id: 1,
+      database: "order-db",
+      host: "10.0.1.45",
+      user: "order_service",
+      state: "Sleep",
+      time: 120,
+      info: "SELECT COUNT(*) FROM orders WHERE status = 'pending'",
+    },
+    {
+      id: 2,
+      database: "user-management-db",
+      host: "10.0.1.32",
+      user: "auth_service",
+      state: "Query",
+      time: 5,
+      info: "SELECT * FROM users WHERE email = ?",
+    },
+    {
+      id: 3,
+      database: "payment-db",
+      host: "10.0.1.67",
+      user: "payment_service",
+      state: "Sleep",
+      time: 45,
+      info: "INSERT INTO transactions (order_id, amount, status) VALUES (?, ?, ?)",
+    },
+  ]);
+
   const [microservices, setMicroservices] = useState([
     {
       name: "Auth Service",
@@ -116,28 +302,28 @@ const TechnicalAssistanceDashboard = () => {
 
   const [connectionLogs, setConnectionLogs] = useState([
     {
-      timestamp: "2024-06-24 14:30:25",
+      timestamp: "2024-06-26 14:30:25",
       ip: "192.168.1.100",
       user: "admin@foodapp.com",
       action: "Login",
       status: "success",
     },
     {
-      timestamp: "2024-06-24 14:28:12",
+      timestamp: "2024-06-26 14:28:12",
       ip: "10.0.0.45",
       user: "dev@company.com",
       action: "API Access",
       status: "success",
     },
     {
-      timestamp: "2024-06-24 14:25:03",
+      timestamp: "2024-06-26 14:25:03",
       ip: "172.16.0.23",
       user: "restaurant@pizza.com",
       action: "Login",
       status: "failed",
     },
     {
-      timestamp: "2024-06-24 14:22:18",
+      timestamp: "2024-06-26 14:22:18",
       ip: "192.168.1.200",
       user: "driver@delivery.com",
       action: "Login",
@@ -154,6 +340,8 @@ const TechnicalAssistanceDashboard = () => {
           message: `System alert: ${
             Math.random() > 0.5
               ? "High CPU usage detected"
+              : Math.random() > 0.5
+              ? "Database connection spike"
               : "New component deployed"
           }`,
           type: Math.random() > 0.5 ? "warning" : "info",
@@ -175,6 +363,7 @@ const TechnicalAssistanceDashboard = () => {
       error: "bg-red-100 text-red-800",
       success: "bg-green-100 text-green-800",
       failed: "bg-red-100 text-red-800",
+      completed: "bg-green-100 text-green-800",
     };
 
     return (
@@ -232,10 +421,28 @@ const TechnicalAssistanceDashboard = () => {
     </div>
   );
 
+  // Database functions
+  const handleBackupDatabase = (dbId) => {
+    console.log(`Backing up database ${dbId}...`);
+  };
+
+  const handleRestartDatabase = (dbId) => {
+    console.log(`Restarting database ${dbId}...`);
+  };
+
+  const handleKillConnection = (connectionId) => {
+    console.log(`Killing connection ${connectionId}...`);
+    setDbConnections((prev) => prev.filter((conn) => conn.id !== connectionId));
+  };
+
+  const handleOptimizeQuery = (queryId) => {
+    console.log(`Optimizing query ${queryId}...`);
+  };
+
   // Function to add a new component
   const handleAddComponent = () => {
     const newComponent = {
-      id: Date.now(), // Using Date.now() as a unique id
+      id: Date.now(),
       name: "New Component",
       version: "1.0.0",
       downloads: 0,
@@ -299,6 +506,39 @@ const TechnicalAssistanceDashboard = () => {
         />
       </div>
 
+      {/* Database Overview */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Database Health Overview
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="text-center p-4 bg-green-50 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">
+              {databases.filter((db) => db.status === "healthy").length}
+            </div>
+            <div className="text-sm text-green-700">Healthy Databases</div>
+          </div>
+          <div className="text-center p-4 bg-yellow-50 rounded-lg">
+            <div className="text-2xl font-bold text-yellow-600">
+              {databases.filter((db) => db.status === "warning").length}
+            </div>
+            <div className="text-sm text-yellow-700">Warning Status</div>
+          </div>
+          <div className="text-center p-4 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">
+              {databases.reduce((sum, db) => sum + db.connections, 0)}
+            </div>
+            <div className="text-sm text-blue-700">Total Connections</div>
+          </div>
+          <div className="text-center p-4 bg-purple-50 rounded-lg">
+            <div className="text-2xl font-bold text-purple-600">
+              {databases.reduce((sum, db) => sum + db.queries, 0)}
+            </div>
+            <div className="text-sm text-purple-700">Queries/min</div>
+          </div>
+        </div>
+      </div>
+
       {/* Microservices Status */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -333,6 +573,263 @@ const TechnicalAssistanceDashboard = () => {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderDatabase = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold text-gray-900">
+          Database Management
+        </h2>
+        <div className="flex space-x-3">
+          <select
+            value={selectedDatabase}
+            onChange={(e) => setSelectedDatabase(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">All Databases</option>
+            {databases.map((db) => (
+              <option key={db.id} value={db.name}>
+                {db.name}
+              </option>
+            ))}
+          </select>
+          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
+            <RefreshCw className="h-4 w-4" />
+            <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Database Status Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        {databases.map((db) => (
+          <div
+            key={db.id}
+            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Database className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">{db.name}</h3>
+                  <p className="text-sm text-gray-500">{db.type}</p>
+                </div>
+              </div>
+              <StatusBadge status={db.status} />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Connections</span>
+                <span className="text-sm font-medium">
+                  {db.connections}/{db.maxConnections}
+                </span>
+              </div>
+              <ProgressBar
+                value={db.connections}
+                max={db.maxConnections}
+                color={
+                  db.connections > 80
+                    ? "red"
+                    : db.connections > 60
+                    ? "yellow"
+                    : "green"
+                }
+              />
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-600">Size:</span>
+                  <span className="font-medium ml-1">{db.size}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Queries/min:</span>
+                  <span className="font-medium ml-1">{db.queries}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Avg Response:</span>
+                  <span className="font-medium ml-1">
+                    {db.avgResponseTime}ms
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Uptime:</span>
+                  <span className="font-medium ml-1">{db.uptime}</span>
+                </div>
+              </div>
+
+              <div className="text-xs text-gray-500 border-t pt-2">
+                <div>
+                  Host: {db.host}:{db.port}
+                </div>
+                <div>Last Backup: {db.lastBackup}</div>
+              </div>
+
+              <div className="flex space-x-2 pt-2">
+                <button
+                  onClick={() => handleBackupDatabase(db.id)}
+                  className="flex-1 bg-green-100 text-green-700 px-3 py-1 rounded text-xs hover:bg-green-200"
+                >
+                  Backup
+                </button>
+                <button
+                  onClick={() => handleRestartDatabase(db.id)}
+                  className="flex-1 bg-orange-100 text-orange-700 px-3 py-1 rounded text-xs hover:bg-orange-200"
+                >
+                  Restart
+                </button>
+                <button className="flex-1 bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs hover:bg-blue-200">
+                  Monitor
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Slow Queries */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Slow Query Log
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Database
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Query
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Duration
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Rows
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Time
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {slowQueries.map((query) => (
+                <tr key={query.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {query.database}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500 max-w-md">
+                    <div className="truncate font-mono text-xs bg-gray-100 p-2 rounded">
+                      {query.query}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <span className="font-medium text-red-600">
+                      {query.duration}s
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {query.rows_examined.toLocaleString()} / {query.rows_sent}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {query.timestamp}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button
+                      onClick={() => handleOptimizeQuery(query.id)}
+                      className="text-blue-600 hover:text-blue-900 mr-3"
+                    >
+                      <TrendingUp className="h-4 w-4" />
+                    </button>
+                    <button className="text-gray-600 hover:text-gray-900">
+                      <Copy className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Active Connections */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Active Database Connections
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Database
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Host
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  User
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  State
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Time
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Info
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {dbConnections.map((conn) => (
+                <tr key={conn.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {conn.database}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {conn.host}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {conn.user}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <StatusBadge status={conn.state.toLowerCase()} />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {conn.time}s
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
+                    <div className="truncate font-mono text-xs">
+                      {conn.info}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button
+                      onClick={() => handleKillConnection(conn.id)}
+                      className="text-red-600 hover:text-red-900"
+                      title="Kill Connection"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -716,7 +1213,8 @@ const TechnicalAssistanceDashboard = () => {
 
   const tabs = [
     { id: "overview", label: "Overview", icon: Activity },
-    { id: "components", label: "Components", icon: Database },
+    { id: "database", label: "Database", icon: Database },
+    { id: "components", label: "Components", icon: Table },
     { id: "logs", label: "Connection Logs", icon: Shield },
     { id: "performance", label: "Performance", icon: BarChart3 },
     { id: "routes", label: "Routes", icon: Route },
@@ -743,63 +1241,15 @@ const TechnicalAssistanceDashboard = () => {
               </div>
             </div>
 
+            {/* Notifications */}
             <div className="flex items-center space-x-4">
-              {/* Notifications */}
               <div className="relative">
-                <button className="p-2 text-gray-400 hover:text-gray-500 relative">
-                  <Bell className="h-6 w-6" />
-                  {notifications.length > 0 && (
-                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                      {notifications.length}
-                    </span>
-                  )}
-                </button>
-
+                <Bell className="h-6 w-6 text-gray-600" />
                 {notifications.length > 0 && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                    <div className="p-4 border-b border-gray-200">
-                      <h3 className="font-semibold text-gray-900">
-                        Notifications
-                      </h3>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {notifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          className="p-3 border-b border-gray-100 last:border-b-0"
-                        >
-                          <div className="flex items-start space-x-3">
-                            <div
-                              className={`p-1 rounded-full ${
-                                notification.type === "warning"
-                                  ? "bg-yellow-100"
-                                  : "bg-blue-100"
-                              }`}
-                            >
-                              {notification.type === "warning" ? (
-                                <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                              ) : (
-                                <Bell className="h-4 w-4 text-blue-600" />
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-sm text-gray-900">
-                                {notification.message}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {notification.timestamp}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {notifications.length}
+                  </span>
                 )}
-              </div>
-
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">TA</span>
               </div>
             </div>
           </div>
@@ -833,6 +1283,7 @@ const TechnicalAssistanceDashboard = () => {
         {/* Tab Content */}
         <div className="tab-content">
           {activeTab === "overview" && renderOverview()}
+          {activeTab === "database" && renderDatabase()}
           {activeTab === "components" && renderComponents()}
           {activeTab === "logs" && renderLogs()}
           {activeTab === "performance" && renderOverview()}

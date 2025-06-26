@@ -129,6 +129,7 @@ export default function DriverDashboard() {
     }
 
   };
+  
   const declineDelivery = async (deliveryId) => {
     if (!isOnline) {
       setError("You must be online to decline deliveries");
