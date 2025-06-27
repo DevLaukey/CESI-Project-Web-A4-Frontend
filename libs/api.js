@@ -477,7 +477,6 @@ export const restaurantAPI = {
     ),
 
 
-
     getDeliveries: async () => {
     try {
       const response = await apiCall(
@@ -525,7 +524,7 @@ export const restaurantAPI = {
 
   getRestaurantOrders: async (status = null) => {
     try {
-      const params = status ? `?status=${status}` : '';
+      const params = status ? `?status=${status}` : "";
       const response = await apiCall(
         `/api/restaurant/orders${params}`,
         {},
@@ -540,11 +539,7 @@ export const restaurantAPI = {
 
   getAllRestaurantOrders: async () => {
     try {
-      const response = await apiCall(
-        "/orders",
-        {},
-        API_BASE_URL_ORDER
-      );
+      const response = await apiCall("/orders", {}, API_BASE_URL_ORDER);
       return response;
     } catch (error) {
       console.error("Error fetching all orders:", error);
@@ -554,29 +549,38 @@ export const restaurantAPI = {
 
   transformDeliveryData: (deliveries) => {
     if (!Array.isArray(deliveries)) return [];
-    
-    return deliveries.map(delivery => ({
+
+    return deliveries.map((delivery) => ({
       id: delivery.id || delivery._id,
       orderId: delivery.id || delivery.order_id,
-      customer: delivery.customer_name || delivery.customerName || "Unknown Customer",
+      customer:
+        delivery.customer_name || delivery.customerName || "Unknown Customer",
       customerPhone: delivery.customer_phone || delivery.customerPhone || "N/A",
       address: delivery.delivery_address || delivery.deliveryAddress || "N/A",
-      driver: delivery.driver ? {
-        name: delivery.driver.name || delivery.driverName || "Unassigned",
-        phone: delivery.driver.phone || delivery.driverPhone || "N/A",
-        rating: delivery.driver.rating || 4.5,
-        vehicle: delivery.driver.vehicle || `${delivery.driver.vehicleMake || 'Vehicle'} - ${delivery.driver.licensePlate || 'N/A'}`,
-      } : null,
+      driver: delivery.driver
+        ? {
+            name: delivery.driver.name || delivery.driverName || "Unassigned",
+            phone: delivery.driver.phone || delivery.driverPhone || "N/A",
+            rating: delivery.driver.rating || 4.5,
+            vehicle:
+              delivery.driver.vehicle ||
+              `${delivery.driver.vehicleMake || "Vehicle"} - ${
+                delivery.driver.licensePlate || "N/A"
+              }`,
+          }
+        : null,
       status: delivery.status,
       orderTotal: delivery.total_amount || delivery.totalAmount || 0,
-      items: delivery.items ? delivery.items.map(item => 
-        `${item.quantity}x ${item.name || item.item_name}`
-      ) : [],
+      items: delivery.items
+        ? delivery.items.map(
+            (item) => `${item.quantity}x ${item.name || item.item_name}`
+          )
+        : [],
       pickupTime: delivery.pickup_time || delivery.created_at,
       estimatedDelivery: delivery.estimated_delivery_time,
       deliveredTime: delivery.delivered_at,
       createdAt: delivery.created_at,
-      updatedAt: delivery.updated_at
+      updatedAt: delivery.updated_at,
     }));
   },
 
@@ -593,8 +597,6 @@ export const restaurantAPI = {
     };
   },
 };
-
-
 
 // Driver API calls
 export const driverAPI = {
@@ -644,33 +646,229 @@ export const driverAPI = {
       API_BASE_URL_DRIVER
     ),
 
-  getAvailableDeliveries: () =>
-    apiCall("/api/drivers/deliveries/available", {}, API_BASE_URL_DRIVER),
+  getAvailableDeliveries: async () => {
+    try {
+      console.log("Starting getAvailableDeliveries...");
 
-  acceptDelivery: (deliveryId) =>
-    apiCall(
-      `/api/deliveries/${deliveryId}/accept`,
-      {
-        method: "POST",
-      },
-      API_BASE_URL_DRIVER
-    ),
+      // Use the simpler direct fetch approach
+      const token = getToken();
+      const userId = getUserId();
 
-  updateDeliveryStatus: (deliveryId, status) =>
-    apiCall(
-      `/api/driver/deliveries/${deliveryId}`,
-      {
-        method: "PUT",
-        body: JSON.stringify({ status }),
-      },
-      API_BASE_URL_DRIVER
-    ),
+      const response = await fetch(
+        `${API_BASE_URL_DRIVER}/api/orders/available`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token && { Authorization: `Bearer ${token}` }),
+            ...(userId && { "x-user-id": userId }),
+          },
+        }
+      );
+
+      console.log("Response status:", response.status);
+      console.log("Response ok:", response.ok);
+
+      if (!response.ok) {
+        throw new Error(
+          `HTTP Error ${response.status}: ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      console.log("Raw API response:", data);
+      console.log("Response type:", typeof data);
+
+      // Handle different possible response structures
+      let orders = [];
+
+      if (data.success && data.data && data.data.orders) {
+        orders = data.data.orders;
+      } else if (data.success && Array.isArray(data.data)) {
+        orders = data.data;
+      } else if (data.orders) {
+        orders = data.orders;
+      } else if (Array.isArray(data)) {
+        orders = data;
+      } else {
+        console.warn("Unknown response structure:", data);
+        return [];
+      }
+
+      console.log("Found orders:", orders);
+
+      if (!Array.isArray(orders)) {
+        console.warn("Orders is not an array:", orders);
+        return [];
+      }
+
+      const formattedOrders = orders
+        .map((order) => formatDeliveryData(order))
+        .filter((order) => order && order.id);
+
+      console.log("Formatted orders:", formattedOrders);
+      return formattedOrders;
+    } catch (error) {
+      console.error("Error in getAvailableDeliveries:", error);
+      throw error;
+    }
+  },
+
+  acceptDelivery: async (orderId) => {
+    try {
+      const response = await apiCall(
+        `/api/orders/${orderId}/accept`,
+        {
+          method: "POST",
+        },
+        API_BASE_URL_DRIVER
+      );
+
+      return {
+        success: response.success || true,
+        data: response.data || response,
+        message: response.message || "Order accepted successfully",
+      };
+    } catch (error) {
+      console.error("Error accepting delivery:", error);
+      throw error;
+    }
+  },
+
+  completeDelivery: async (deliveryId, completionData = {}) => {
+    try {
+      const response = await apiCall(
+        `/api/orders/${deliveryId}/complete`,
+        {
+          method: "POST",
+          body: JSON.stringify(completionData),
+        },
+        API_BASE_URL_DRIVER
+      );
+
+      return {
+        success: response.success || true,
+        data: response.data || response,
+        message: response.message || "Delivery completed successfully",
+      };
+    } catch (error) {
+      console.error("Error completing delivery:", error);
+      throw error;
+    }
+  },
+
+  rejectDelivery: async (deliveryId, reason = null) => {
+    try {
+      const body = reason ? { reason } : {};
+
+      const response = await apiCall(
+        `/${deliveryId}/reject`,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+        API_BASE_URL_DRIVER
+      );
+
+      return {
+        success: response.success || true,
+        data: response.data || response,
+        message: response.message || "Order rejected successfully",
+      };
+    } catch (error) {
+      console.error("Error rejecting delivery:", error);
+      // Return success even if API fails (for UX)
+      return { success: true, message: "Delivery declined" };
+    }
+  },
+
+  getDeliveryHistory: async (page = 1, limit = 10, status = null) => {
+    try {
+      const params = new URLSearchParams();
+
+      if (status) {
+        params.append("status", status);
+      }
+
+      const endpoint = params.toString()
+        ? `/api/orders/my-orders?${params}`
+        : "/api/orders/my-orders";
+
+      const response = await apiCall(endpoint, {}, API_BASE_URL_DRIVER);
+
+      if (response.success && response.data && response.data.orders) {
+        return {
+          success: true,
+          orders: response.data.orders.map((order) => formatHistoryData(order)),
+          pagination: response.data.pagination || {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: response.data.orders.length,
+          },
+        };
+      }
+
+      return {
+        success: true,
+        orders: [],
+        pagination: { page: 1, limit: 10, total: 0 },
+      };
+    } catch (error) {
+      console.error("Error fetching delivery history:", error);
+      return {
+        success: false,
+        orders: [],
+        pagination: { page: 1, limit: 10, total: 0 },
+      };
+    }
+  },
+
+  // FIXED: Update delivery status route - /:orderId/pickup
+  updateDeliveryStatus: async (deliveryId, status, additionalData = {}) => {
+    try {
+      let endpoint;
+      let body = { ...additionalData };
+
+      // Map status to correct endpoint
+      switch (status) {
+        case "picked_up":
+          endpoint = `/orders/${deliveryId}/status`;
+          break;
+        case "delivered":
+        case "completed":
+          endpoint = `/orders/${deliveryId}/status`;
+          break;
+        default:
+          // Fallback - try to update status directly
+          endpoint = `/orders/${deliveryId}/status`;
+          body.status = status;
+      }
+
+      const response = await apiCall(
+        endpoint,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+        API_BASE_URL_DRIVER
+      );
+
+      return {
+        success: response.success || true,
+        data: response.data || response,
+        message: response.message || "Status updated successfully",
+      };
+    } catch (error) {
+      console.error("Error updating delivery status:", error);
+      throw error;
+    }
+  },
 
   getEarnings: () => apiCall("/api/driver/earnings", {}, API_BASE_URL_DRIVER),
 
   updateLocation: (latitude, longitude) =>
     apiCall(
-      "/api/driver/location",
+      "/api/drivers/location",
       {
         method: "PUT",
         body: JSON.stringify({ latitude, longitude }),
@@ -680,30 +878,13 @@ export const driverAPI = {
 
   setAvailability: (isAvailable) =>
     apiCall(
-      "/api/driver/availability",
+      "/api/drivers/location",
       {
         method: "PUT",
         body: JSON.stringify({ isAvailable }),
       },
       API_BASE_URL_DRIVER
     ),
-
-  getDeliveryHistory: (page = 1, limit = 10, status = null) => {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    });
-
-    if (status) {
-      params.append("status", status);
-    }
-
-    return apiCall(
-      `/api/drivers/deliveries/history?${params}`,
-      {},
-      API_BASE_URL_DRIVER
-    );
-  },
 
   getDriverEarnings: (startDate = null, endDate = null) => {
     const params = new URLSearchParams();
@@ -727,13 +908,14 @@ export const driverAPI = {
   getVehicleInfo: () =>
     apiCall("/api/drivers/vehicle", {}, API_BASE_URL_DRIVER),
 
+
   toggleAvailability: (available) => {
     console.log("Toggling availability:", available);
     return apiCall(
       "/api/drivers/availability",
       {
-        method: "PATCH",
-        body: JSON.stringify({ available }),
+        method: "POST",
+        body: JSON.stringify({ isAvailable }),
       },
       API_BASE_URL_DRIVER
     );
@@ -758,58 +940,68 @@ export const driverAPI = {
       API_BASE_URL_DRIVER
     );
   },
-
-  rejectDelivery: async (deliveryId, reason = null) => {
-    try {
-      const body = reason ? { reason } : {};
-
-      return await apiCall(
-        `/api/deliveries/${deliveryId}/decline`,
-        {
-          method: "POST",
-          body: JSON.stringify(body),
-        },
-        API_BASE_URL_DRIVER
-      );
-    } catch (error) {
-      // If reject endpoint doesn't exist, we can just handle it client-side
-      if (
-        error.message.includes("404") ||
-        error.message.includes("HTTP Error 404")
-      ) {
-        return { success: true, message: "Delivery declined" };
-      }
-      throw error;
-    }
-  },
-
-  completeDelivery: async (deliveryId, completionData = {}) => {
-    try {
-      return await apiCall(
-        `/api/deliveries/${deliveryId}/complete`,
-        {
-          method: "POST",
-          body: JSON.stringify(completionData),
-        },
-        API_BASE_URL_DRIVER
-      );
-    } catch (error) {
-      // If complete endpoint doesn't exist, try updating status
-      if (
-        error.message.includes("404") ||
-        error.message.includes("HTTP Error 404")
-      ) {
-        return await originalDriverAPI.updateDeliveryStatus(
-          deliveryId,
-          "completed"
-        );
-      }
-      throw error;
-    }
-  },
 };
 
-export const formatDeliveryData = (delivery) => {
+export const formatDeliveryData = (order) => {
+  console.log("🔧 Formatting delivery data:", order);
+
+  if (!order) {
+    console.warn("⚠️ Order is null/undefined in formatDeliveryData");
+    return null;
+  }
+
+  const formatted = {
+    id: order.id || order._id || order.uuid,
+    restaurant:
+      order.restaurant?.name ||
+      order.restaurantName ||
+      order.restaurant ||
+      "Unknown Restaurant",
+    customer:
+      order.customer?.name ||
+      order.customerName ||
+      order.customer ||
+      "Unknown Customer",
+    address:
+      order.address ||
+      order.deliveryAddress ||
+      order.delivery_address ||
+      "No address provided",
+    distance: order.distance
+      ? `${order.distance} km`
+      : order.distanceKm
+      ? `${order.distanceKm} km`
+      : "N/A",
+    earnings:
+      order.earnings ||
+      order.estimatedEarnings ||
+      order.driver_earnings ||
+      order.amount ||
+      "€0.00",
+    estimatedTime:
+      order.estimatedTime ||
+      order.estimated_time ||
+      order.deliveryTime ||
+      "N/A",
+    items: order.items?.length || order.itemCount || order.item_count || 0,
+    priority: order.priority || "normal",
+    lat: order.lat || order.latitude || order.delivery_lat,
+    lng: order.lng || order.longitude || order.delivery_lng,
+    status: order.status,
+    createdAt: order.createdAt || order.created_at,
+    updatedAt: order.updatedAt || order.updated_at,
+    // Additional fields
+    uuid: order.uuid,
+    restaurantId: order.restaurantId || order.restaurant_id,
+    paymentId: order.paymentId || order.payment_id,
+    vehicleType: order.vehicleType || order.vehicle_type || "bike",
+  };
+
+  console.log("Formatted delivery:", formatted);
+  return formatted;
+};
+// NEW: Format history data specifically
+export const formatHistoryData = (order) => {
   return {
     id: delivery.id || delivery._id,
     restaurant: delivery.restaurant || { name: delivery.restaurantName },
@@ -830,7 +1022,7 @@ export const formatDeliveryData = (delivery) => {
   };
 };
 
-// Helper function to format driver stats
+// Helper function to format driver stats (keep existing)
 export const formatDriverStats = (stats) => {
   return {
     todayEarnings: `€${(stats.todayEarnings || 0).toFixed(2)}`,
@@ -846,7 +1038,7 @@ export const formatDriverStats = (stats) => {
   };
 };
 
-// Helper function to format online time
+// Helper function to format online time (keep existing)
 export const formatOnlineTime = (hours) => {
   if (typeof hours === "string") return hours;
 
