@@ -2,11 +2,12 @@
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI } from "@/libs/api";
 
-export default function RegisterPage() {
+// Separate component that uses useSearchParams
+function RegisterForm() {
   // State variables for form inputs and status
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +26,14 @@ export default function RegisterPage() {
 
   // Validate user type on component mount
   useEffect(() => {
-    const validTypes = ["end_user", "delivery_driver", "restaurant_owner"];
+    const validTypes = [
+      "end_user",
+      "delivery_driver",
+      "restaurant_owner",
+      "tech_support",
+      "sales_dept",
+      "developer",
+    ];
     if (!validTypes.includes(userType)) {
       router.push("/register?type=end_user");
     }
@@ -65,10 +73,12 @@ export default function RegisterPage() {
           break;
         case 409:
           setError("An account with this email already exists.");
-          break;  
+          break;
         case 422:
           if (error.response.data && error.response.data.errors) {
-            const errorMessages = Object.values(error.response.data.errors).flat();
+            const errorMessages = Object.values(
+              error.response.data.errors
+            ).flat();
             setError(errorMessages.join(". "));
           } else {
             setError("Please check your information and try again.");
@@ -79,16 +89,16 @@ export default function RegisterPage() {
           break;
         default:
           setError("An unexpected error occurred. Please try again.");
+      }
     }
-  }
 
-  if (error.message) {
-    setError(error.message);
-    return;
-  }
+    if (error.message) {
+      setError(error.message);
+      return;
+    }
 
-  return "Network error. Please check your internet connection and try again.";
-  }
+    return "Network error. Please check your internet connection and try again.";
+  };
 
   async function handleFormSubmit(ev) {
     ev.preventDefault();
@@ -121,7 +131,7 @@ export default function RegisterPage() {
         firstName,
         lastName,
         phone,
-        userType, 
+        userType,
         address: "Not provided",
         city: "Not provided",
         postalCode: "00000",
@@ -144,6 +154,7 @@ export default function RegisterPage() {
           case "restaurant_owner":
             router.push("/onboarding/restaurant");
             break;
+
           default:
             router.push("/login");
         }
@@ -440,10 +451,102 @@ export default function RegisterPage() {
               Continue with Google
             </button>
           </form>
-
-          
         </div>
       </div>
     </section>
+  );
+}
+
+// Loading component for the suspense fallback
+function RegisterLoading() {
+  return (
+    <section className="min-h-screen bg-gradient-to-br py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md mx-auto">
+        {/* Loading Header */}
+        <div className="text-center mb-8">
+          <div className="animate-pulse">
+            <div className="h-10 bg-gray-300 rounded-md w-32 mx-auto mb-2"></div>
+            <div className="h-4 bg-gray-300 rounded-md w-48 mx-auto"></div>
+          </div>
+        </div>
+
+        {/* Loading Form Card */}
+        <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
+          <div className="p-8 space-y-6">
+            <div className="animate-pulse">
+              {/* Name Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <div className="h-4 bg-gray-300 rounded-md w-20 mb-2"></div>
+                  <div className="h-12 bg-gray-300 rounded-xl"></div>
+                </div>
+                <div>
+                  <div className="h-4 bg-gray-300 rounded-md w-20 mb-2"></div>
+                  <div className="h-12 bg-gray-300 rounded-xl"></div>
+                </div>
+              </div>
+
+              {/* Email Field */}
+              <div className="mb-6">
+                <div className="h-4 bg-gray-300 rounded-md w-24 mb-2"></div>
+                <div className="h-12 bg-gray-300 rounded-xl"></div>
+              </div>
+
+              {/* Phone Field */}
+              <div className="mb-6">
+                <div className="h-4 bg-gray-300 rounded-md w-24 mb-2"></div>
+                <div className="h-12 bg-gray-300 rounded-xl"></div>
+              </div>
+
+              {/* Password Field */}
+              <div className="mb-6">
+                <div className="h-4 bg-gray-300 rounded-md w-16 mb-2"></div>
+                <div className="h-12 bg-gray-300 rounded-xl mb-2"></div>
+
+                {/* Password Requirements */}
+                <div className="mt-2 space-y-1">
+                  <div className="h-3 bg-gray-200 rounded-md w-32 mb-2"></div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300"></div>
+                        <div className="h-3 bg-gray-200 rounded-md flex-1"></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="h-14 bg-gray-300 rounded-xl mb-8"></div>
+
+              {/* Divider */}
+              <div className="relative my-8">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-white">
+                    <div className="h-3 bg-gray-300 rounded-md w-24"></div>
+                  </span>
+                </div>
+              </div>
+
+              {/* Google Button */}
+              <div className="h-14 bg-gray-300 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// Main component with Suspense boundary
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<RegisterLoading />}>
+      <RegisterForm />
+    </Suspense>
   );
 }

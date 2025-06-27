@@ -92,7 +92,7 @@ function Footer() {
                 </li>
                 <li>
                   <a
-                    href="/thirdparty"
+                    href="/register?type=developer"
                     className="text-white hover:text-yellow-400 transition-colors"
                   >
                     <span className="text-white">Third party Developer</span>
@@ -100,28 +100,20 @@ function Footer() {
                 </li>
                 <li>
                   <a
-                    href="/sales"
+                    href="/register?type=sales_dept"
                     className="text-white hover:text-yellow-400 transition-colors"
                   >
                     <span className="text-white">Sales</span>
                   </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/technical-assistance"
-                      className="text-white hover:text-yellow-400 transition-colors"
-                    >
-                      <span className="text-white">Technical Assistance</span>
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/admin"
-                      className="text-white hover:text-yellow-400 transition-colors"
-                    >
-                      <span className="text-white">Admin</span> 
-                    </a>
-                  </li>
+                </li>
+                <li>
+                  <a
+                    href="/register?type=tech_support"
+                    className="text-white hover:text-yellow-400 transition-colors"
+                  >
+                    <span className="text-white">Technical Assistance</span>
+                  </a>
+                </li>
               </ul>
             </div>
 

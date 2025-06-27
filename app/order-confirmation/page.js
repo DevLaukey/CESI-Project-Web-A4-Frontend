@@ -1,7 +1,7 @@
-// app/order-confirmation/page.js
+
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   CheckCircle,
@@ -13,7 +13,8 @@ import {
   User,
 } from "lucide-react";
 
-export default function OrderConfirmationPage() {
+// Separate component that uses useSearchParams
+function OrderConfirmationContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId");
   const paymentId = searchParams.get("paymentId");
@@ -522,5 +523,91 @@ export default function OrderConfirmationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Loading component for the suspense fallback
+function OrderConfirmationLoading() {
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4 space-y-8">
+        {/* Loading Success Header */}
+        <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+          <div className="animate-pulse">
+            <div className="mx-auto h-16 w-16 rounded-full bg-gray-200 mb-4"></div>
+            <div className="h-8 bg-gray-200 rounded-md w-64 mx-auto mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded-md w-96 mx-auto mb-4"></div>
+            <div className="bg-gray-200 rounded-lg p-4 w-48 h-16 mx-auto"></div>
+          </div>
+        </div>
+
+        {/* Loading Order Status */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="animate-pulse">
+            <div className="h-6 bg-gray-200 rounded-md w-32 mb-6"></div>
+            <div className="flex justify-between mb-8">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex flex-col items-center flex-1">
+                  <div className="h-10 w-10 bg-gray-200 rounded-full mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded-md w-16 mb-1"></div>
+                  <div className="h-3 bg-gray-200 rounded-md w-12"></div>
+                </div>
+              ))}
+            </div>
+            <div className="text-center">
+              <div className="bg-gray-200 rounded-lg p-4 w-64 h-12 mx-auto"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Loading Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="space-y-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white rounded-lg shadow-sm p-6">
+                <div className="animate-pulse">
+                  <div className="h-6 bg-gray-200 rounded-md w-24 mb-4"></div>
+                  <div className="flex items-start space-x-4">
+                    <div className="w-16 h-16 bg-gray-200 rounded-lg"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-gray-200 rounded-md"></div>
+                      <div className="h-4 bg-gray-200 rounded-md w-3/4"></div>
+                      <div className="h-4 bg-gray-200 rounded-md w-1/2"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white rounded-lg shadow-sm p-6">
+                <div className="animate-pulse">
+                  <div className="h-6 bg-gray-200 rounded-md w-24 mb-4"></div>
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((j) => (
+                      <div key={j} className="space-y-2">
+                        <div className="h-4 bg-gray-200 rounded-md"></div>
+                        <div className="h-4 bg-gray-200 rounded-md w-2/3"></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function OrderConfirmationPage() {
+  return (
+    <Suspense fallback={<OrderConfirmationLoading />}>
+      <OrderConfirmationContent />
+    </Suspense>
   );
 }

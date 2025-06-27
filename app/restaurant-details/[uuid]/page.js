@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -22,17 +22,16 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { customerAPI } from "@/libs/api";
-import { CartContext } from "@/components/AppContext";
-import FloatingCart from "@/components/layout/FloatingCart"; 
+import FloatingCart from "@/components/layout/FloatingCart";
 import Image from "next/image";
-
+import { useCart } from "@/data/CartContext";
 
 function RestaurantDetailPage() {
   const router = useRouter();
   const params = useParams();
   const restaurantUuid = params.uuid;
 
-  const { addToCart } = useContext(CartContext); // Use cart context
+  const { addToCart, restaurant: cartRestaurant } = useCart(); // Use cart context
 
   const [restaurant, setRestaurant] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
@@ -77,12 +76,28 @@ function RestaurantDetailPage() {
         restaurantData = response;
       }
 
+
       if (!restaurantData || !restaurantData.uuid) {
         console.log("Invalid restaurant data");
         setRestaurant(null);
         return;
       }
 
+      // Transform restaurant data to have items.price as a number
+      if (restaurantData.items && Array.isArray(restaurantData.items)) {
+        restaurantData.items = restaurantData.items.map((item) => ({
+          ...item,
+          basePrice: parseFloat(item.price) || 0,
+          price: parseFloat(item.price) || 0,
+          category: item.category?.name || "Uncategorized",
+          image: item.images && item.images.length > 0 ? item.images[0] : null,
+          restaurantUuid: restaurantData.uuid,
+          restaurantName: restaurantData.name,
+          restaurantDeliveryFee: restaurantData.deliveryFee || 2.99,
+        }));
+      }
+
+      console.log("Transformed restaurant data2:", restaurantData);
       setRestaurant(restaurantData);
     } catch (error) {
       console.error("Error fetching restaurant details:", error);
@@ -116,6 +131,9 @@ function RestaurantDetailPage() {
           price: parseFloat(item.price) || 0,
           category: item.category?.name || "Uncategorized",
           image: item.images && item.images.length > 0 ? item.images[0] : null,
+          restaurantUuid: restaurantUuid,
+          restaurantName: restaurant?.name,
+          restaurantDeliveryFee: restaurant?.deliveryFee,
         }));
 
         setMenuItems(transformedItems);
@@ -129,6 +147,9 @@ function RestaurantDetailPage() {
             category: item.category?.name || "Uncategorized",
             image:
               item.images && item.images.length > 0 ? item.images[0] : null,
+            restaurantUuid: restaurantUuid,
+            restaurantName: restaurant?.name,
+            restaurantDeliveryFee: restaurant?.deliveryFee,
           }));
           setMenuItems(transformedItems);
         } else {
@@ -161,6 +182,9 @@ function RestaurantDetailPage() {
         isVegetarian: true,
         isVegan: false,
         spicyLevel: 0,
+        restaurantUuid: restaurantUuid,
+        restaurantName: restaurant?.name,
+        restaurantDeliveryFee: restaurant?.deliveryFee,
       },
       {
         id: 2,
@@ -178,6 +202,9 @@ function RestaurantDetailPage() {
         isVegetarian: false,
         isVegan: false,
         spicyLevel: 0,
+        restaurantUuid: restaurantUuid,
+        restaurantName: restaurant?.name,
+        restaurantDeliveryFee: restaurant?.deliveryFee,
       },
     ];
     setMenuItems(sampleItems);
@@ -186,7 +213,7 @@ function RestaurantDetailPage() {
   const loadFavoriteStatus = () => {
     try {
       const favorites = JSON.parse(
-        sessionStorage.getItem("favoriteRestaurants") || "[]"
+        localStorage.getItem("favoriteRestaurants") || "[]"
       );
       setIsFavorite(favorites.includes(restaurantUuid));
     } catch (error) {
@@ -197,7 +224,7 @@ function RestaurantDetailPage() {
   const toggleFavorite = () => {
     try {
       const favorites = JSON.parse(
-        sessionStorage.getItem("favoriteRestaurants") || "[]"
+        localStorage.getItem("favoriteRestaurants") || "[]"
       );
       let newFavorites;
 
@@ -207,23 +234,34 @@ function RestaurantDetailPage() {
         newFavorites = [...favorites, restaurantUuid];
       }
 
-      sessionStorage.setItem(
-        "favoriteRestaurants",
-        JSON.stringify(newFavorites)
-      );
+      localStorage.setItem("favoriteRestaurants", JSON.stringify(newFavorites));
       setIsFavorite(!isFavorite);
     } catch (error) {
       console.error("Error toggling favorite:", error);
     }
   };
 
-  const handleAddToCart = (item) => {
+  const handleAddToCart = async (item) => {
+    // Prepare the item with restaurant information
     const cartItem = {
       ...item,
       basePrice: item.basePrice || item.price,
+      restaurantUuid: restaurantUuid,
+      restaurantName: restaurant?.name,
+      restaurantDeliveryFee: restaurant?.deliveryFee || 2.99,
     };
 
-    addToCart(cartItem, null, []); // No size or extras for now
+    try {
+      const success = await addToCart(cartItem, null, []); // No size or extras for now
+
+      if (success) {
+        // Optional: Show success message
+        console.log(`Added ${item.name} to cart`);
+      }
+    } catch (error) {
+      console.error("Error adding item to cart:", error);
+      alert("Failed to add item to cart. Please try again.");
+    }
   };
 
   // Filter menu items
@@ -276,14 +314,14 @@ function RestaurantDetailPage() {
   };
 
   const getRestaurantImage = () => {
-
     if (!restaurant) return "";
- 
-    else
-      return (
 
-      "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&h=400&fit=crop"
-    );
+    return "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&h=400&fit=crop";
+  };
+
+  // Check if user has items from different restaurant in cart
+  const hasDifferentRestaurantInCart = () => {
+    return cartRestaurant && cartRestaurant.uuid !== restaurantUuid;
   };
 
   if (loading) {
@@ -334,6 +372,24 @@ function RestaurantDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Different Restaurant Warning */}
+      {hasDifferentRestaurantInCart() && (
+        <div className="bg-orange-50 border-l-4 border-orange-400 p-4 sticky top-0 z-50 shadow-sm">
+          <div className="max-w-7xl mx-auto flex items-start">
+            <AlertTriangle className="w-5 h-5 text-orange-400 mt-0.5 mr-3 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-orange-800">
+                Different Restaurant in Cart
+              </h3>
+              <p className="text-sm text-orange-700 mt-1">
+                You have items from {cartRestaurant.name} in your cart. Adding
+                items from {restaurant.name} will clear your current cart.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Status Warning Cards */}
       {showStatusWarning && (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 sticky top-0 z-50 shadow-sm">
@@ -385,23 +441,20 @@ function RestaurantDetailPage() {
 
       {/* Header Image */}
       <div className="relative h-64 sm:h-80 lg:h-96">
-
-  
         <Image
           src={getRestaurantImage()}
           alt={restaurant.name}
-          width={300}
-          height={500}
+          width={800}
+          height={400}
           quality={100}
-          className="w-full h-full rounded-t-lg object-cover"
+          className="w-full h-full object-cover"
           onError={(e) => {
             e.target.src =
-              "https://th.bing.com/th/id/OIP.3MEpKjAjT2jsg_JaMsx7egHaE8?w=800&h=400&fit=crop";
+              "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&h=400&fit=crop";
           }}
         />
 
-        <div className="absolute inset-0  bg-opacity-20"></div>
-
+        <div className="absolute inset-0 bg-opacity-20"></div>
 
         <button
           onClick={() => router.back()}
@@ -479,8 +532,8 @@ function RestaurantDetailPage() {
                 <div className="flex items-center space-x-1">
                   <Truck className="w-4 h-4" />
                   <span>
-                    €{parseFloat(restaurant.deliveryFee).toFixed(2)} delivery
-                    fee
+                    €{parseFloat(restaurant.deliveryFee || 2.99).toFixed(2)}{" "}
+                    delivery fee
                   </span>
                 </div>
                 {restaurant.minimumOrder &&

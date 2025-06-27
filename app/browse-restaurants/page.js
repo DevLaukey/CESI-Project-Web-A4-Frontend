@@ -15,8 +15,8 @@ import {
   Mail,
 } from "lucide-react";
 import { customerAPI } from "@/libs/api";
-import { CartContext } from "@/components/AppContext";
 import FloatingCart from "@/components/layout/FloatingCart"; 
+import { CartContext } from "@/data/CartContext";
 
 function BrowseRestaurants() {
   const router = useRouter();

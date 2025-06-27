@@ -439,7 +439,7 @@ export const restaurantAPI = {
     apiCall(
       `/api/restaurants/owner/me`,
       {
-        method: "PUT",
+        method: "PATCH",
         body: JSON.stringify({
           isOpen,
         }),
@@ -456,16 +456,28 @@ export const restaurantAPI = {
       API_BASE_URL_RESTAURANT
     ),
 
-  deleteRestaurant: (restaurantId) =>
-    apiCall(
+  // Implement deleteRestaurant if needed, or remove this line if not used
+  deleteRestaurant: (restaurantId) => {
+    return apiCall(
       `/api/restaurants/${restaurantId}`,
       {
         method: "DELETE",
       },
       API_BASE_URL_RESTAURANT
+    );
+  },
+
+  getRestaurantInfoFromUUID: () =>
+    apiCall(
+      `/api/restaurants/owner/me`,
+      {
+        method: "GET",
+      },
+      API_BASE_URL_RESTAURANT
     ),
 
-  getDeliveries: async () => {
+
+    getDeliveries: async () => {
     try {
       const response = await apiCall(
         "/orders/restaurant/me",
@@ -594,6 +606,16 @@ export const driverAPI = {
       {
         method: "POST",
         body: JSON.stringify(profileData),
+      },
+      API_BASE_URL_DRIVER
+    ),
+
+  createDeliveryRecord: (deliveryData) =>
+    apiCall(
+      "/api/deliveries",
+      {
+        method: "POST",
+        body: JSON.stringify(deliveryData),
       },
       API_BASE_URL_DRIVER
     ),
@@ -886,8 +908,9 @@ export const driverAPI = {
   getVehicleInfo: () =>
     apiCall("/api/drivers/vehicle", {}, API_BASE_URL_DRIVER),
 
-  toggleAvailability: (isAvailable) => {
-    console.log("Toggling availability:", isAvailable);
+
+  toggleAvailability: (available) => {
+    console.log("Toggling availability:", available);
     return apiCall(
       "/api/drivers/availability",
       {
@@ -980,19 +1003,22 @@ export const formatDeliveryData = (order) => {
 // NEW: Format history data specifically
 export const formatHistoryData = (order) => {
   return {
-    id: order.id || order._id,
-    restaurant: order.restaurant || "Unknown Restaurant",
-    customer: order.customer || "Unknown Customer",
-    address: order.address || "No address provided",
-    completedAt: order.completedAt,
-    earnings: order.earnings || "€0.00",
-    rating: order.rating || 0,
-    status: order.status,
-    date:
-      order.date ||
-      (order.completedAt
-        ? new Date(order.completedAt).toLocaleDateString()
-        : "N/A"),
+    id: delivery.id || delivery._id,
+    restaurant: delivery.restaurant || { name: delivery.restaurantName },
+    customer: delivery.customer || { name: delivery.customerName },
+    address: delivery.deliveryAddress || delivery.address,
+    distance:
+      delivery.distance || `${(delivery.distanceKm || 0).toFixed(1)} km`,
+    earnings: delivery.driverEarnings || delivery.earnings || delivery.amount,
+    estimatedTime:
+      delivery.estimatedDeliveryTime || delivery.estimatedTime || "N/A",
+    items: delivery.items?.length || delivery.itemCount || 0,
+    priority: delivery.priority || "normal",
+    lat: delivery.deliveryLocation?.latitude || delivery.lat,
+    lng: delivery.deliveryLocation?.longitude || delivery.lng,
+    status: delivery.status,
+    createdAt: delivery.createdAt,
+    updatedAt: delivery.updatedAt,
   };
 };
 
@@ -1129,11 +1155,88 @@ export const referralAPI = {
   },
 };
 
-export const orderAPI = {
-  // for sales
+export const OrderAPI = {
   getOrders: async () => {
     const res = await apiCall("/orders", {}, API_BASE_URL_ORDER);
     return res;
+  },
+
+  createDeliveryForOrder: async (orderId, restaurantId) => {
+    return apiCall(
+      `/api/deliveries`,
+      {
+        method: "POST",
+        body: JSON.stringify({ orderId, restaurantId }),
+      },
+      API_BASE_URL_DRIVER
+    );
+  },
+
+
+  updateOrder: async (orderId, orderData) => {
+    return apiCall(
+      `/orders/${orderId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(orderData),
+      },
+      API_BASE_URL_ORDER
+    );
+  },
+
+  updateOrderStatus: async (orderId, status) => {
+    return apiCall(
+      `/orders/${orderId}/status`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      },
+      API_BASE_URL_ORDER
+    );
+  },
+
+  createOrder: async (orderData) => {
+    return apiCall(
+      "/orders",
+      {
+        method: "POST",
+        body: JSON.stringify(orderData),
+      },
+      API_BASE_URL_ORDER
+    );
+  },
+
+  getSpecificRestaurantOrders: async (restaurantId) => {
+    return apiCall(
+      `/orders/restaurant/${restaurantId}`,
+      {},
+      API_BASE_URL_ORDER
+    );
+  },
+
+  getOrderWithDetails: async (orderId) => {
+    return apiCall(`/orders/${orderId}`, {}, API_BASE_URL_ORDER);
+  },
+  getOrderTracking: async (orderId) => {
+    return apiCall(`/orders/${orderId}`, {}, API_BASE_URL_ORDER);
+  },
+
+  getOrderDetails: async (orderId) => {
+    return apiCall(`/orders/${orderId}`, {}, API_BASE_URL_ORDER);
+  },
+
+  getOrderHistory: async () => {
+    return apiCall("/orders", {}, API_BASE_URL_ORDER);
+  },
+
+  cancelOrder: async (orderId) => {
+    return apiCall(
+      `/api/orders/${orderId}/cancel`,
+      {
+        method: "PUT",
+      },
+      API_BASE_URL
+    );
   },
 };
 

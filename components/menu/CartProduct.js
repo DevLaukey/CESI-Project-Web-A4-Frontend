@@ -1,4 +1,3 @@
-import {cartProductPrice} from "@/components/AppContext";
 import Trash from "@/components/icons/Trash";
 import Image from "next/image";
 
@@ -25,9 +24,9 @@ export default function CartProduct({product,onRemove}) {
           </div>
         )}
       </div>
-      <div className="text-lg font-semibold">
+      {/* <div className="text-lg font-semibold">
         ${cartProductPrice(product)}
-      </div>
+      </div> */}
       {!!onRemove && (
         <div className="ml-2">
           <button

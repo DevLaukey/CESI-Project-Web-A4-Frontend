@@ -1,14 +1,14 @@
 "use client";
-// Remove this line: import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthContext";
 import { authAPI } from "@/libs/api";
 import "./styles.css";
 
-export default function LoginPage() {
+// Separate component that uses useSearchParams
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginInProgress, setLoginInProgress] = useState(false);
@@ -64,6 +64,18 @@ export default function LoginPage() {
       if (userType === "delivery_driver" && isDeliveryRoute) {
         return redirectUrl;
       }
+      if (
+        userType === "tech_support" &&
+        redirectUrl.startsWith("/tech-support")
+      ) {
+        return redirectUrl;
+      }
+      if (userType === "developer" && redirectUrl.startsWith("/third-party")) {
+        return redirectUrl;
+      }
+      if (userType === "sales_dept" && redirectUrl.startsWith("/sales")) {
+        return redirectUrl;
+      }
       if (userType === "end_user" && !isRestaurantRoute && !isDeliveryRoute) {
         return redirectUrl;
       }
@@ -75,6 +87,13 @@ export default function LoginPage() {
         return "/restaurant";
       case "delivery_driver":
         return "/delivery";
+      case "tech_support":
+        return "/tech-support";
+      case "sales_dept":
+        return "/sales";
+      case "developer":
+        return "/third-party";
+
       case "end_user":
       case "user":
       default:
@@ -464,5 +483,43 @@ export default function LoginPage() {
         </div>
       </div>
     </section>
+  );
+}
+
+// Loading component for the suspense fallback
+function LoginLoading() {
+  return (
+    <section className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-300 rounded-md w-32 mx-auto mb-4"></div>
+            <div className="h-4 bg-gray-300 rounded-md w-48 mx-auto"></div>
+          </div>
+        </div>
+        <div className="bg-white shadow-lg rounded-lg p-8">
+          <div className="animate-pulse space-y-6">
+            <div>
+              <div className="h-4 bg-gray-300 rounded-md w-24 mb-2"></div>
+              <div className="h-12 bg-gray-300 rounded-lg"></div>
+            </div>
+            <div>
+              <div className="h-4 bg-gray-300 rounded-md w-16 mb-2"></div>
+              <div className="h-12 bg-gray-300 rounded-lg"></div>
+            </div>
+            <div className="h-12 bg-gray-300 rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// Main component with Suspense boundary
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginLoading />}>
+      <LoginForm />
+    </Suspense>
   );
 }

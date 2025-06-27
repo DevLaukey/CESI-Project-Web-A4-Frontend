@@ -1,5 +1,4 @@
 "use client";
-import { CartContext } from "@/components/AppContext";
 import { useAuth } from "@/components/AuthContext";
 import Link from "next/link";
 import { useContext, useState, useEffect } from "react";
@@ -28,9 +27,11 @@ import {
   AlertCircle,
   Circle,
   X,
+  ListOrdered,
 } from "lucide-react";
 import NotificationBell from "./Notification";
 import { AuthLinks } from "./AuthLinks";
+import { CartContext } from "@/data/CartContext";
 
 export default function Header() {
   const { isAuthenticated, user, userType, userName, logout } = useAuth();
@@ -66,9 +67,13 @@ export default function Header() {
   const getBrandName = () => {
     switch (userType) {
       case "restaurant_owner":
-        return "RestaurantHub";
+        return "CESI(Restaurant)";
       case "delivery_driver":
-        return "DriveEats";
+        return "CESI(Delivery)";
+      case "tech_support":
+        return "CESI(TechSupport)";
+      case "sales_dept":
+        return "CESI(SalesDept)";
       default:
         return "CESI(EATS)";
     }
@@ -91,6 +96,7 @@ export default function Header() {
           { href: "/delivery/deliveries", label: "Deliveries" },
           { href: "/delivery/earnings", label: "Earnings" },
         ];
+      
       default:
         return [
           { href: "/", label: "Home" },
@@ -100,6 +106,21 @@ export default function Header() {
   };
 
   const navLinks = getNavLinks();
+
+  const getPreviousOrders = () => {
+    if (userType === "end_user") {
+      return "/orders";
+    } else if (userType === "restaurant_owner") {
+      return "/restaurant/orders";
+    } else if (userType === "delivery_driver") {
+      return "/delivery/deliveries";
+    } else if (userType === "tech_support") {
+      return "/tech-support/tickets";
+    } else if (userType === "sales_dept") {
+      return "/sales-dept/leads";
+    }
+    return "/";
+  };
 
   return (
     <header className="px-4 py-3 bg-white shadow-sm border-b border-gray-100">
@@ -194,15 +215,11 @@ export default function Header() {
             {/* Desktop Cart for customers */}
             {isAuthenticated && userType === "end_user" && (
               <Link
-                href={getCartUrl()}
+                href={getPreviousOrders()}
                 className="relative p-2 hover:text-yellow-500 transition-colors"
               >
-                <ShoppingCart className="w-5 h-5" />
-                {cartProducts?.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-yellow-400 text-gray-900 text-xs py-1 px-2 rounded-full leading-3 min-w-[20px] text-center font-medium">
-                    {cartProducts.length}
-                  </span>
-                )}
+                <ListOrdered className="w-5 h-5" />
+                
               </Link>
             )}
 

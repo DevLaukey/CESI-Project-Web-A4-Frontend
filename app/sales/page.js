@@ -9,7 +9,7 @@ import {
   TrendingUp,
   AlertTriangle,
 } from "lucide-react";
-import { orderAPI, userAPI, restaurantAPI2 } from "@/libs/api"; // adjust path if needed
+import { OrderAPI, userAPI, restaurantAPI2 } from "@/libs/api"; // adjust path if needed
 
 export default function SalesDashboard() {
   const [orders, setOrders] = useState([]);
@@ -53,7 +53,7 @@ export default function SalesDashboard() {
 
     try {
       console.log("🔄 Fetching orders...");
-      const data = await orderAPI.getOrders();
+      const data = await OrderAPI.getOrders();
       console.log("✅ Fetched orders:", data);
 
       const arr = Array.isArray(data) ? data : [];
@@ -328,10 +328,10 @@ export default function SalesDashboard() {
                       Order ID
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Customer UUID
+                      Customer Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Restaurant ID
+                      Restaurant Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
