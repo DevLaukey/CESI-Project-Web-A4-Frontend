@@ -456,21 +456,138 @@ export const restaurantAPI = {
       API_BASE_URL_RESTAURANT
     ),
 
-  deleteRestaurant: () =>
+  deleteRestaurant: (restaurantId) =>
     apiCall(
-      `/api/restaurants/owner/me`,
+      `/api/restaurants/${restaurantId}`,
       {
         method: "DELETE",
       },
       API_BASE_URL_RESTAURANT
     ),
+
+    getDeliveries: async () => {
+    try {
+      const response = await apiCall(
+        "/orders/restaurant/me",
+        {},
+        API_BASE_URL_ORDER
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching deliveries:", error);
+      throw error;
+    }
+  },
+
+  getDeliveryStats: async () => {
+    try {
+      const response = await apiCall(
+        "/owner/statistics",
+        {},
+        API_BASE_URL_RESTAURANT
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching delivery stats:", error);
+      throw error;
+    }
+  },
+
+  updateDeliveryStatus: async (deliveryId, status) => {
+    try {
+      const response = await apiCall(
+        `/orders/${deliveryId}/status`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ status }),
+        },
+        API_BASE_URL_ORDER
+      );
+      return response;
+    } catch (error) {
+      console.error("Error updating delivery status:", error);
+      throw error;
+    }
+  },
+
+  getRestaurantOrders: async (status = null) => {
+    try {
+      const params = status ? `?status=${status}` : '';
+      const response = await apiCall(
+        `/api/restaurant/orders${params}`,
+        {},
+        API_BASE_URL_RESTAURANT
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching restaurant orders:", error);
+      throw error;
+    }
+  },
+
+  getAllRestaurantOrders: async () => {
+    try {
+      const response = await apiCall(
+        "/orders",
+        {},
+        API_BASE_URL_ORDER
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching all orders:", error);
+      throw error;
+    }
+  },
+
+  transformDeliveryData: (deliveries) => {
+    if (!Array.isArray(deliveries)) return [];
+    
+    return deliveries.map(delivery => ({
+      id: delivery.id || delivery._id,
+      orderId: delivery.id || delivery.order_id,
+      customer: delivery.customer_name || delivery.customerName || "Unknown Customer",
+      customerPhone: delivery.customer_phone || delivery.customerPhone || "N/A",
+      address: delivery.delivery_address || delivery.deliveryAddress || "N/A",
+      driver: delivery.driver ? {
+        name: delivery.driver.name || delivery.driverName || "Unassigned",
+        phone: delivery.driver.phone || delivery.driverPhone || "N/A",
+        rating: delivery.driver.rating || 4.5,
+        vehicle: delivery.driver.vehicle || `${delivery.driver.vehicleMake || 'Vehicle'} - ${delivery.driver.licensePlate || 'N/A'}`,
+      } : null,
+      status: delivery.status,
+      orderTotal: delivery.total_amount || delivery.totalAmount || 0,
+      items: delivery.items ? delivery.items.map(item => 
+        `${item.quantity}x ${item.name || item.item_name}`
+      ) : [],
+      pickupTime: delivery.pickup_time || delivery.created_at,
+      estimatedDelivery: delivery.estimated_delivery_time,
+      deliveredTime: delivery.delivered_at,
+      createdAt: delivery.created_at,
+      updatedAt: delivery.updated_at
+    }));
+  },
+
+  // Helper function to transform stats data
+  transformStatsData: (stats) => {
+    const data = stats.data || stats || {};
+    return {
+      totalDeliveries: data.totalOrders || 0,
+      averageTime: data.averageDeliveryTime || 28,
+      onTimeRate: data.onTimeDeliveryRate || 94,
+      customerSatisfaction: data.averageRating || 4.8,
+      activeDrivers: data.activeDrivers || 0,
+      completedToday: data.ordersToday || 0,
+    };
+  },
 };
+
+
 
 // Driver API calls
 export const driverAPI = {
   createDriverProfile: (profileData) =>
     apiCall(
-      "/api/drivers/register",
+      "/api/drivers/onboard",
       {
         method: "POST",
         body: JSON.stringify(profileData),
