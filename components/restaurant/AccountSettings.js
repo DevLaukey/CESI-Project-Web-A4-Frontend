@@ -232,10 +232,13 @@ export default function AccountSettings() {
       setError("Restaurant name confirmation does not match");
       return;
     }
+    // pass restaurant id for deletion
+    const restaurantId = restaurant ? restaurant.uuid : null;
+    console.log(restaurantId);
 
     setIsDeleting(true);
     try {
-      const response = await restaurantAPI.deleteRestaurant();
+      const response = await restaurantAPI.deleteRestaurant(restaurantId);
 
       if (response.success) {
         // Logout the user and redirect
