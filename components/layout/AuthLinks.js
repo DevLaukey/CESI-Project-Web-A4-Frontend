@@ -134,6 +134,26 @@ export function AuthLinks({ isAuthenticated, user, userType, onLogout }) {
                 </div>
               </div>
             )}
+            {/* Quick Actions for End Users */}
+            {userType === "end_user" && (
+              <div className="border-t border-gray-200 py-2">
+                <div className="px-4 py-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                    Quick Actions
+                  </p>
+                  <div className="space-y-1">
+                    
+                    <button
+                      onClick={() => router.push("/account-settings")}
+                      className="w-full flex items-center gap-2 text-left text-sm text-gray-600 hover:text-gray-900 py-1"
+                    >
+                      <Circle className="w-3 h-3" />
+                      Profile Settings
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Logout Button */}
             <div className="border-t border-gray-200 py-2">

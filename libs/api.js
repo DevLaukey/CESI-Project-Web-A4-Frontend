@@ -439,7 +439,7 @@ export const restaurantAPI = {
     apiCall(
       `/api/restaurants/owner/me`,
       {
-        method: "PUT",
+        method: "PATCH",
         body: JSON.stringify({
           isOpen,
         }),
@@ -456,14 +456,18 @@ export const restaurantAPI = {
       API_BASE_URL_RESTAURANT
     ),
 
+
   deleteRestaurant: (restaurantId) =>
+  getRestaurantInfoFromUUID: () =>
     apiCall(
-      `/api/restaurants/${restaurantId}`,
+      `/api/restaurants/owner/me`,
       {
-        method: "DELETE",
+        method: "GET",
       },
       API_BASE_URL_RESTAURANT
     ),
+
+
 
     getDeliveries: async () => {
     try {
@@ -595,6 +599,16 @@ export const driverAPI = {
       API_BASE_URL_DRIVER
     ),
 
+  createDeliveryRecord: (deliveryData) =>
+    apiCall(
+      "/api/deliveries",
+      {
+        method: "POST",
+        body: JSON.stringify(deliveryData),
+      },
+      API_BASE_URL_DRIVER
+    ),
+
   completeDriverProfile: (profileData) =>
     apiCall(
       "/api/drivers/complete-profile",
@@ -705,7 +719,7 @@ export const driverAPI = {
     apiCall("/api/drivers/vehicle", {}, API_BASE_URL_DRIVER),
 
   toggleAvailability: (available) => {
-    console.log("Toggling availability:", available)
+    console.log("Toggling availability:", available);
     return apiCall(
       "/api/drivers/availability",
       {
@@ -713,7 +727,7 @@ export const driverAPI = {
         body: JSON.stringify({ available }),
       },
       API_BASE_URL_DRIVER
-    )
+    );
   },
 
   updateDriverLocation: (latitude, longitude, heading = null, speed = null) => {
@@ -792,16 +806,18 @@ export const formatDeliveryData = (delivery) => {
     restaurant: delivery.restaurant || { name: delivery.restaurantName },
     customer: delivery.customer || { name: delivery.customerName },
     address: delivery.deliveryAddress || delivery.address,
-    distance: delivery.distance || `${(delivery.distanceKm || 0).toFixed(1)} km`,
+    distance:
+      delivery.distance || `${(delivery.distanceKm || 0).toFixed(1)} km`,
     earnings: delivery.driverEarnings || delivery.earnings || delivery.amount,
-    estimatedTime: delivery.estimatedDeliveryTime || delivery.estimatedTime || 'N/A',
+    estimatedTime:
+      delivery.estimatedDeliveryTime || delivery.estimatedTime || "N/A",
     items: delivery.items?.length || delivery.itemCount || 0,
-    priority: delivery.priority || 'normal',
+    priority: delivery.priority || "normal",
     lat: delivery.deliveryLocation?.latitude || delivery.lat,
     lng: delivery.deliveryLocation?.longitude || delivery.lng,
     status: delivery.status,
     createdAt: delivery.createdAt,
-    updatedAt: delivery.updatedAt
+    updatedAt: delivery.updatedAt,
   };
 };
 
@@ -809,17 +825,22 @@ export const formatDeliveryData = (delivery) => {
 export const formatDriverStats = (stats) => {
   return {
     todayEarnings: `€${(stats.todayEarnings || 0).toFixed(2)}`,
-    weeklyEarnings: `€${(stats.weeklyEarnings || stats.totalEarnings || 0).toFixed(2)}`,
-    completedDeliveries: stats.completedDeliveries || stats.totalDeliveries || 0,
+    weeklyEarnings: `€${(
+      stats.weeklyEarnings ||
+      stats.totalEarnings ||
+      0
+    ).toFixed(2)}`,
+    completedDeliveries:
+      stats.completedDeliveries || stats.totalDeliveries || 0,
     averageRating: (stats.averageRating || 0).toFixed(1),
-    onlineTime: formatOnlineTime(stats.onlineTime || stats.totalHours || 0)
+    onlineTime: formatOnlineTime(stats.onlineTime || stats.totalHours || 0),
   };
 };
 
 // Helper function to format online time
 export const formatOnlineTime = (hours) => {
-  if (typeof hours === 'string') return hours;
-  
+  if (typeof hours === "string") return hours;
+
   const h = Math.floor(hours);
   const m = Math.floor((hours - h) * 60);
   return `${h}h ${m}m`;
@@ -859,8 +880,6 @@ export const customerAPI = {
       API_BASE_URL
     ),
 
-
-
   getRestaurantById: async (restaurantId) => {
     return apiCall(
       `/api/restaurants/${restaurantId}`,
@@ -879,7 +898,6 @@ export const customerAPI = {
   getMenu: async (restaurantId) => {
     return apiCall(`/api/menus/${restaurantId}`, {}, API_BASE_URL_RESTAURANT);
   },
-
 };
 
 // Referral API calls
@@ -936,11 +954,88 @@ export const referralAPI = {
   },
 };
 
-export const orderAPI = {
-  // for sales
+export const OrderAPI = {
   getOrders: async () => {
     const res = await apiCall("/orders", {}, API_BASE_URL_ORDER);
     return res;
+  },
+
+  createDeliveryForOrder: async (orderId, restaurantId) => {
+    return apiCall(
+      `/api/deliveries`,
+      {
+        method: "POST",
+        body: JSON.stringify({ orderId, restaurantId }),
+      },
+      API_BASE_URL_DRIVER
+    );
+  },
+
+
+  updateOrder: async (orderId, orderData) => {
+    return apiCall(
+      `/orders/${orderId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(orderData),
+      },
+      API_BASE_URL_ORDER
+    );
+  },
+
+  updateOrderStatus: async (orderId, status) => {
+    return apiCall(
+      `/orders/${orderId}/status`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      },
+      API_BASE_URL_ORDER
+    );
+  },
+
+  createOrder: async (orderData) => {
+    return apiCall(
+      "/orders",
+      {
+        method: "POST",
+        body: JSON.stringify(orderData),
+      },
+      API_BASE_URL_ORDER
+    );
+  },
+
+  getSpecificRestaurantOrders: async (restaurantId) => {
+    return apiCall(
+      `/orders/restaurant/${restaurantId}`,
+      {},
+      API_BASE_URL_ORDER
+    );
+  },
+
+  getOrderWithDetails: async (orderId) => {
+    return apiCall(`/orders/${orderId}`, {}, API_BASE_URL_ORDER);
+  },
+  getOrderTracking: async (orderId) => {
+    return apiCall(`/orders/${orderId}`, {}, API_BASE_URL_ORDER);
+  },
+
+  getOrderDetails: async (orderId) => {
+    return apiCall(`/orders/${orderId}`, {}, API_BASE_URL_ORDER);
+  },
+
+  getOrderHistory: async () => {
+    return apiCall("/orders", {}, API_BASE_URL_ORDER);
+  },
+
+  cancelOrder: async (orderId) => {
+    return apiCall(
+      `/api/orders/${orderId}/cancel`,
+      {
+        method: "PUT",
+      },
+      API_BASE_URL
+    );
   },
 };
 

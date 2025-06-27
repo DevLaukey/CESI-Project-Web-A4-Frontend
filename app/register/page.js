@@ -25,7 +25,14 @@ export default function RegisterPage() {
 
   // Validate user type on component mount
   useEffect(() => {
-    const validTypes = ["end_user", "delivery_driver", "restaurant_owner"];
+    const validTypes = [
+      "end_user",
+      "delivery_driver",
+      "restaurant_owner",
+      "tech_support",
+      "sales_dept",
+      "developer",
+    ];
     if (!validTypes.includes(userType)) {
       router.push("/register?type=end_user");
     }
@@ -144,6 +151,7 @@ export default function RegisterPage() {
           case "restaurant_owner":
             router.push("/onboarding/restaurant");
             break;
+            
           default:
             router.push("/login");
         }

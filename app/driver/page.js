@@ -22,7 +22,9 @@ import {
 import dynamic from 'next/dynamic';
 
 // Dynamically import the DriverMap component to avoid SSR issues
-const DriverMap = dynamic(() => import('./DriverMap'), { ssr: false });
+const DriverMap = dynamic(() => import("@/components/delivery/DriverMap"), {
+  ssr: false,
+});
 
 export default function DriverDashboard() {
   const [activeTab, setActiveTab] = useState('available');

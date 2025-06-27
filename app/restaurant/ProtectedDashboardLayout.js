@@ -555,13 +555,45 @@ function DashboardLayoutContent({ children }) {
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [hasRestaurant, setHasRestaurant] = useState(false);
 
+  // Notifications state
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      type: "order",
+      message: "New order #1234 received",
+      time: "2 min ago",
+      unread: true,
+    },
+    {
+      id: 2,
+      type: "delivery",
+      message: "Order #1230 out for delivery",
+      time: "15 min ago",
+      unread: true,
+    },
+    {
+      id: 3,
+      type: "system",
+      message: 'Menu item "Margherita Pizza" low stock',
+      time: "1 hour ago",
+      unread: false,
+    },
+  ]);
+
+  const [showNotifications, setShowNotifications] = useState(false);
+
+
   // Check if restaurant owner has completed onboarding
   useEffect(() => {
     const checkRestaurantOnboarding = async () => {
       if (user?.userType !== "restaurant_owner") {
         setIsCheckingOnboarding(false);
+        router.push("/browse-restaurant");
         return;
       }
+
+   
+   
 
       try {
         console.log("Checking restaurant onboarding status...");
