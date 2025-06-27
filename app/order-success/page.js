@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CheckCircle,
@@ -24,7 +24,8 @@ import Image from "next/image";
 import { useCart } from "@/data/CartContext";
 import { OrderAPI, RestaurantAPI, driverAPI } from "@/libs/api";
 
-export default function OrderSuccessPage() {
+// Separate component that uses useSearchParams
+function OrderSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const {
@@ -70,9 +71,9 @@ export default function OrderSuccessPage() {
     const interval = setInterval(async () => {
       try {
         // Fetch real-time tracking updates
-          const trackingData = await OrderAPI.getOrderTracking(orderDetails.id);
-          
-          console.log("Real-time tracking data:", trackingData);
+        const trackingData = await OrderAPI.getOrderTracking(orderDetails.id);
+
+        console.log("Real-time tracking data:", trackingData);
         if (trackingData?.currentStep !== undefined) {
           setCurrentStep(trackingData.currentStep);
         }
@@ -127,8 +128,6 @@ export default function OrderSuccessPage() {
       const orderData = await OrderAPI.getOrderWithDetails(orderId);
 
       console.log("Fetched order data:", orderData);
-
-   
 
       // Fetch delivery details
       let deliveryData = null;
@@ -423,9 +422,7 @@ export default function OrderSuccessPage() {
           <div className="bg-white/20 rounded-lg p-4 max-w-md mx-auto">
             <p className="text-green-100 text-sm mb-1">Order Number</p>
             <div className="flex items-center justify-center gap-2">
-              <span className="text-xl font-bold">
-                {orderDetails?.id}
-              </span>
+              <span className="text-xl font-bold">{orderDetails?.id}</span>
               <button
                 onClick={copyOrderNumber}
                 className="p-1 hover:bg-white/20 rounded transition-colors"
@@ -460,7 +457,6 @@ export default function OrderSuccessPage() {
               <h3 className="text-sm font-medium text-green-800">
                 Payment Processed Successfully
               </h3>
-             
             </div>
           </div>
         </div>
@@ -866,5 +862,106 @@ export default function OrderSuccessPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Loading component for the suspense fallback
+function OrderSuccessLoading() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Loading Success Header */}
+      <div className="bg-gradient-to-r from-green-600 to-green-700 text-white">
+        <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+          <div className="animate-pulse">
+            <div className="w-20 h-20 mx-auto mb-4 bg-green-200 rounded-full"></div>
+            <div className="h-8 bg-green-200 rounded-md w-64 mx-auto mb-2"></div>
+            <div className="h-4 bg-green-200 rounded-md w-96 mx-auto mb-4"></div>
+            <div className="bg-white/20 rounded-lg p-4 max-w-md mx-auto">
+              <div className="h-4 bg-green-200 rounded-md w-24 mx-auto mb-2"></div>
+              <div className="h-6 bg-green-200 rounded-md w-32 mx-auto"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Loading Left Column */}
+          <div className="space-y-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white rounded-lg shadow-sm p-6">
+                <div className="animate-pulse">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-5 h-5 bg-gray-200 rounded"></div>
+                    <div className="h-6 bg-gray-200 rounded-md w-32"></div>
+                  </div>
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((j) => (
+                      <div key={j} className="flex items-start gap-4">
+                        <div className="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0"></div>
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-gray-200 rounded-md"></div>
+                          <div className="h-3 bg-gray-200 rounded-md w-3/4"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Loading Right Column */}
+          <div className="space-y-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white rounded-lg shadow-sm p-6">
+                <div className="animate-pulse">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-5 h-5 bg-gray-200 rounded"></div>
+                    <div className="h-6 bg-gray-200 rounded-md w-32"></div>
+                  </div>
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((j) => (
+                      <div key={j} className="space-y-2">
+                        <div className="h-4 bg-gray-200 rounded-md"></div>
+                        <div className="h-4 bg-gray-200 rounded-md w-2/3"></div>
+                      </div>
+                    ))}
+                  </div>
+                  {i === 1 && (
+                    <div className="border-t pt-4 mt-6 space-y-2">
+                      {[1, 2, 3, 4].map((k) => (
+                        <div key={k} className="flex justify-between">
+                          <div className="h-3 bg-gray-200 rounded-md w-16"></div>
+                          <div className="h-3 bg-gray-200 rounded-md w-12"></div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Loading Action Buttons */}
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-12 bg-gray-200 rounded-lg"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function OrderSuccessPage() {
+  return (
+    <Suspense fallback={<OrderSuccessLoading />}>
+      <OrderSuccessContent />
+    </Suspense>
   );
 }
