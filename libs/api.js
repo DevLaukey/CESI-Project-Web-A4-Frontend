@@ -456,8 +456,17 @@ export const restaurantAPI = {
       API_BASE_URL_RESTAURANT
     ),
 
+  // Implement deleteRestaurant if needed, or remove this line if not used
+  deleteRestaurant: (restaurantId) => {
+    return apiCall(
+      `/api/restaurants/${restaurantId}`,
+      {
+        method: "DELETE",
+      },
+      API_BASE_URL_RESTAURANT
+    );
+  },
 
-  deleteRestaurant: (restaurantId) =>
   getRestaurantInfoFromUUID: () =>
     apiCall(
       `/api/restaurants/owner/me`,
