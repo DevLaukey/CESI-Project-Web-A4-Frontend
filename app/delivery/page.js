@@ -56,10 +56,10 @@ export default function DriverDashboard() {
   const [currentDelivery, setCurrentDelivery] = useState(null);
   const [deliveryHistory, setDeliveryHistory] = useState([]);
   const [stats, setStats] = useState({
-    todayEarnings: 0,
-    weeklyEarnings: 0,
+    todayEarnings: "€0.00",
+    weeklyEarnings: "€0.00",
     completedDeliveries: 0,
-    averageRating: 0,
+    averageRating: "0.0",
     onlineTime: "0h 0m",
   });
   const [isOnline, setIsOnline] = useState(false);
@@ -70,7 +70,9 @@ export default function DriverDashboard() {
     loadStats();
 
     const interval = setInterval(() => {
-      refreshData();
+      if (isOnline) {
+        refreshData();
+      }
     }, 60000); // Refresh data every minute
     return () => clearInterval(interval);
   }, [isOnline]);
@@ -80,35 +82,79 @@ export default function DriverDashboard() {
       setAvailableDeliveries([]);
       return;
     }
+
     setLoadingStates((prev) => ({ ...prev, availableDeliveries: true }));
     try {
+      console.log("Loading available deliveries...");
       const deliveries = await driverAPI.getAvailableDeliveries();
+
+      console.log("Received deliveries:", deliveries);
 
       if (!deliveries || deliveries.length === 0) {
         setAvailableDeliveries([]);
-        setError("No available deliveries at the moment");
+        setError(null); // Don't show error for empty results
         return;
       }
+
       setAvailableDeliveries(deliveries);
+      setError(null);
     } catch (err) {
-      setError("Failed to load available deliveries");
+      console.error("Error loading available deliveries:", err);
+      setError("Failed to load available deliveries. Please try again.");
+      setAvailableDeliveries([]);
     } finally {
       setLoadingStates((prev) => ({ ...prev, availableDeliveries: false }));
     }
   };
 
-  const loadDeliveryHistory = async () => {};
+  const loadDeliveryHistory = async () => {
+    setLoadingStates((prev) => ({ ...prev, loadingHistory: true }));
+    try {
+      const response = await driverAPI.getDeliveryHistory();
 
-  const loadStats = async () => {};
+      if (response.success && response.orders) {
+        setDeliveryHistory(response.orders);
+      } else {
+        setDeliveryHistory([]);
+      }
+    } catch (err) {
+      console.error("Error loading delivery history:", err);
+      setDeliveryHistory([]);
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, loadingHistory: false }));
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      // You can implement this when you have a stats endpoint
+      // For now, keep default values
+      setStats({
+        todayEarnings: "€45.30",
+        weeklyEarnings: "€312.50",
+        completedDeliveries: 8,
+        averageRating: "4.8",
+        onlineTime: "6h 45m",
+      });
+    } catch (err) {
+      console.error("Error loading stats:", err);
+    }
+  };
 
   const acceptDelivery = async (delivery) => {
     if (!isOnline) {
       setError("You must be online to accept deliveries");
       return;
     }
-    setLoadingStates((prev) => ({ ...prev, acceptingDelivery: false }));
+
+    setLoadingStates((prev) => ({ ...prev, acceptingDelivery: true }));
     try {
+      console.log("Accepting delivery:", delivery.id);
+
       const response = await driverAPI.acceptDelivery(delivery.id);
+
+      console.log("Accept delivery response:", response);
+
       if (response.success) {
         setCurrentDelivery(delivery);
         setAvailableDeliveries((prev) =>
@@ -116,118 +162,175 @@ export default function DriverDashboard() {
         );
         setError(null);
         setActiveTab("current");
+
+        // Add success notification
+        addNotification({
+          type: "success",
+          message: "Order accepted successfully!",
+          time: new Date().toLocaleTimeString(),
+        });
       } else {
-        setError("Failed to accept delivery");
-        return;
+        setError(response.message || "Failed to accept delivery");
       }
-      
     } catch (err) {
-      setError("Failed to accept delivery");
-      return;
+      console.error("Error accepting delivery:", err);
+      setError("Failed to accept delivery. Please try again.");
     } finally {
       setLoadingStates((prev) => ({ ...prev, acceptingDelivery: false }));
     }
-
   };
+
   const declineDelivery = async (deliveryId) => {
     if (!isOnline) {
       setError("You must be online to decline deliveries");
       return;
     }
+
     setLoadingStates((prev) => ({ ...prev, decliningDelivery: true }));
     try {
+      console.log("Declining delivery:", deliveryId);
       const response = await driverAPI.rejectDelivery(deliveryId);
+
       if (response.success) {
         setAvailableDeliveries((prev) =>
           prev.filter((d) => d.id !== deliveryId)
         );
         setError(null);
+
+        // Add notification
+        addNotification({
+          type: "info",
+          message: "Order declined",
+          time: new Date().toLocaleTimeString(),
+        });
       } else {
-        setError("Failed to decline delivery");
+        setError(response.message || "Failed to decline delivery");
       }
     } catch (err) {
+      console.error("Error declining delivery:", err);
       setError("Failed to decline delivery");
     } finally {
       setLoadingStates((prev) => ({ ...prev, decliningDelivery: false }));
     }
   };
+
   const completeDelivery = async () => {
     if (!currentDelivery || !isOnline) {
       setError("No current delivery to complete");
       return;
     }
+
     setLoadingStates((prev) => ({ ...prev, updatingStatus: true }));
-
     try {
+      console.log("Completing delivery:", currentDelivery.id);
       const response = await driverAPI.completeDelivery(currentDelivery.id);
-      if (response.success) {
-        setCurrentDelivery(null);
-        setAvailableDeliveries((prev) =>
-          prev.filter((d) => d.id !== currentDelivery.id)
-        );
-        setError(null);
-        loadAvailableDeliveries();
-        setActiveTab("available");
-      } else {
-        setError("Failed to complete delivery");
-      }
 
+      if (response.success) {
+        // Add to history
+        setDeliveryHistory((prev) => [
+          {
+            ...currentDelivery,
+            status: "delivered",
+            completedAt: new Date().toISOString(),
+            date: new Date().toLocaleDateString(),
+          },
+          ...prev,
+        ]);
+
+        setCurrentDelivery(null);
+        setError(null);
+        loadAvailableDeliveries(); // Refresh available deliveries
+        setActiveTab("available");
+
+        // Add success notification
+        addNotification({
+          type: "success",
+          message: `Delivery completed! Earned ${currentDelivery.earnings}`,
+          time: new Date().toLocaleTimeString(),
+        });
+      } else {
+        setError(response.message || "Failed to complete delivery");
+      }
     } catch (err) {
+      console.error("Error completing delivery:", err);
       setError("Failed to complete delivery");
     } finally {
       setLoadingStates((prev) => ({ ...prev, updatingStatus: false }));
     }
   };
-  
+
   const toggleOnlineStatus = async () => {
     try {
       const newStatus = !isOnline;
+      console.log("Toggling online status to:", newStatus);
+
       const response = await driverAPI.toggleAvailability(newStatus);
-      console.log("response from toggling availability", response);
+      console.log("Toggle availability response:", response);
+
       if (response.success) {
         setIsOnline(newStatus);
         setError(null);
+
         if (newStatus) {
           loadAvailableDeliveries();
+          addNotification({
+            type: "success",
+            message: "You're now online and can receive deliveries",
+            time: new Date().toLocaleTimeString(),
+          });
         } else {
           setAvailableDeliveries([]);
           setCurrentDelivery(null);
+          addNotification({
+            type: "info",
+            message: "You're now offline",
+            time: new Date().toLocaleTimeString(),
+          });
         }
       } else {
         setError("Failed to change online status");
       }
     } catch (err) {
+      console.error("Error toggling online status:", err);
       setError("Failed to change online status");
     }
   };
-  const handleLogout = () => {
-    // Logic to handle logout
+
+  const addNotification = (notification) => {
+    const newNotification = {
+      ...notification,
+      id: Date.now() + Math.random(),
+    };
+    setNotifications((prev) => [newNotification, ...prev]);
+
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+      setNotifications((prev) =>
+        prev.filter((n) => n.id !== newNotification.id)
+      );
+    }, 5000);
   };
 
-  const handleSetActiveTab = (tab) => {
-    setActiveTab(tab);
+  const handleLogout = () => {
+    // Logic to handle logout
+    console.log("Logging out...");
   };
+
   const clearError = () => {
     setError(null);
   };
+
   const handleRemoveNotification = (notificationId) => {
     setNotifications((prev) =>
       prev.filter((notification) => notification.id !== notificationId)
     );
   };
+
   const refreshData = () => {
-    // Logic to refresh data
-    setLoadingStates((prev) => ({
-      ...prev,
-      availableDeliveries: true,
-    }));
-    // Simulate data fetching
-    setTimeout(() => {
-      setLoadingStates((prev) => ({
-        ...prev,
-        availableDeliveries: false,
-      }));
-    }, 2000);
+    console.log("Refreshing data...");
+    if (isOnline) {
+      loadAvailableDeliveries();
+    }
   };
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -316,11 +419,36 @@ export default function DriverDashboard() {
   const CurrentDeliveryStatus = () => {
     const [deliveryStep, setDeliveryStep] = useState(0);
     const steps = [
-      { title: "Heading to Restaurant", icon: Navigation, color: "blue" },
-      { title: "Picking up Order", icon: Package, color: "orange" },
-      { title: "Delivering to Customer", icon: MapPin, color: "purple" },
       { title: "Delivery Complete", icon: CheckCircle, color: "green" },
     ];
+
+    const handleNextStep = async () => {
+      const nextStep = deliveryStep + 1;
+
+      if (nextStep === 1) {
+        // Arrived at restaurant
+        try {
+          await driverAPI.completeDelivery(
+            currentDelivery.id,
+            { status: "picked_up" }
+          );
+          setDeliveryStep(nextStep);
+        } catch (err) {
+          console.error("Error updating status:", err);
+        }
+      } else if (nextStep === 2) {
+        // Picked up order
+        try {
+          await driverAPI.updateDeliveryStatus(currentDelivery.id, "delivered");
+          setDeliveryStep(nextStep);
+        } catch (err) {
+          console.error("Error updating status:", err);
+        }
+      } else if (nextStep === 3) {
+        // Ready to complete
+        setDeliveryStep(nextStep);
+      }
+    };
 
     return (
       <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
@@ -381,14 +509,14 @@ export default function DriverDashboard() {
         {/* Action Buttons */}
         <div className="flex gap-3 mt-6">
           <button
-            onClick={() => setDeliveryStep(Math.min(deliveryStep + 1, 3))}
+            onClick={handleNextStep}
             disabled={deliveryStep === 3 || loadingStates.updatingStatus}
             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loadingStates.updatingStatus ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : deliveryStep === 3 ? (
-              "Completed"
+              "Ready to Complete"
             ) : (
               "Next Step"
             )}
@@ -435,7 +563,6 @@ export default function DriverDashboard() {
       )}
 
       {/* Notifications */}
-
       <div className="fixed top-4 left-4 z-50 space-y-2">
         {notifications.map((notification) => (
           <div
@@ -451,7 +578,7 @@ export default function DriverDashboard() {
             <div className="flex justify-between items-start">
               <p className="font-medium">{notification.message}</p>
               <button
-                onClick={() => removeNotification(notification.id)}
+                onClick={() => handleRemoveNotification(notification.id)}
                 className="ml-2 text-gray-500 hover:text-gray-700"
               >
                 <X size={14} />
@@ -880,11 +1007,7 @@ export default function DriverDashboard() {
                               </p>
                               <p className="text-xs text-gray-500 flex items-center gap-2">
                                 <Calendar className="w-4 h-4" />
-                                {delivery.completedAt
-                                  ? new Date(
-                                      delivery.completedAt
-                                    ).toLocaleDateString()
-                                  : delivery.date}
+                                {delivery.date}
                               </p>
                             </div>
                             <div className="text-right">
